@@ -1,0 +1,47 @@
+/* ============================================================
+   AQUA — Logo
+   ============================================================ */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.logo-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  background: linear-gradient(140deg, var(--aqua-400), var(--aqua-600));
+  color: #eaf9ff;
+  box-shadow: 0 2px 10px rgba(34, 211, 238, 0.28);
+}
+
+.logo-mark svg {
+  width: 21px;
+  height: 21px;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.logo-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--sidebar-text-strong);
+}
+
+.logo-tagline {
+  font-size: 11px;
+  color: var(--sidebar-section);
+  white-space: nowrap;
+}

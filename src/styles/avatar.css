@@ -1,0 +1,45 @@
+/* ============================================================
+   AQUA — Avatar
+   ============================================================ */
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-full);
+  background: linear-gradient(140deg, var(--aqua-500), var(--aqua-700));
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.avatar-image {
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-sm {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.avatar-md {
+  width: 34px;
+  height: 34px;
+  font-size: 13px;
+}
+
+.avatar-lg {
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+}
+
+/* Dùng ở trang Hồ sơ cá nhân — nơi ảnh đại diện là nội dung chính. */
+.avatar-xl {
+  width: 84px;
+  height: 84px;
+  font-size: 28px;
+}

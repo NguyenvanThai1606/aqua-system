@@ -1,0 +1,176 @@
+/* ============================================================
+   AQUA — Header
+   ============================================================ */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  height: var(--header-h);
+  padding: 0 18px 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Ô tìm kiếm --- */
+.header-search {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.header-search-icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 11px;
+  transform: translateY(-50%);
+  color: var(--text-subtle);
+  pointer-events: none;
+}
+
+/* Dùng 2 lớp để chắc chắn thắng .input trong global.css,
+   không phụ thuộc vào thứ tự import CSS */
+.input.header-search-input {
+  height: 36px;
+  padding-inline-start: 34px;
+  background: var(--surface-2);
+  border-color: transparent;
+}
+
+.input.header-search-input:focus {
+  background: var(--surface);
+}
+
+/* --- Nhóm nút bên phải --- */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.header-bell {
+  position: relative;
+}
+
+.header-bell-dot {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 2px;
+  display: grid;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--surface);
+  background: var(--danger);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+  place-items: center;
+}
+
+/* --- Dropdown kết quả tìm kiếm (Phase 14) --- */
+.header-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline: 0;
+  z-index: 40;
+  overflow: hidden;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.header-search-empty {
+  padding: 14px 16px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.header-search-group + .header-search-group {
+  border-top: 1px solid var(--border);
+}
+
+.header-search-group-label {
+  margin: 0;
+  padding: 8px 14px 4px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.header-search-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13.5px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.header-search-row:hover,
+.header-search-row-active {
+  background: var(--surface-hover);
+}
+
+.header-search-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-divider {
+  width: 1px;
+  height: 24px;
+  margin-inline: 6px;
+  background: var(--border);
+}
+
+/* ============================================================
+   Thu gọn dần theo bề ngang
+   ============================================================ */
+
+@media (max-width: 1100px) {
+  .header-search {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 860px) {
+  .header-search {
+    display: none;
+  }
+
+  .header-right {
+    margin-inline-start: auto;
+  }
+}

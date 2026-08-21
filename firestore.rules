@@ -1,0 +1,819 @@
+// AQUA — Firestore Security Rules (Phase 4 role hệ thống + Phase 5 phân
+// quyền nghiệp vụ Project/Task + Phase 6 gắn Project.manager/Task.assignee
+// với Firebase Auth uid thật + Phase 7 mở quyền list `users` cho mọi user
+// đã đăng nhập để phục vụ filter/picker + Phase 8 cho phép tự sửa hồ sơ
+// displayName/photoURL của chính mình, thắt chặt field được phép đổi
+// + Phase 9 ảnh đại diện = URL người dùng tự dán (KHÔNG dùng Firebase
+// Storage, project tiếp tục chạy trên gói Spark): khóa cứng danh sách
+// field mỗi nhánh update được đổi và validate `photoURL`
+// + Phase 10 module NHÂN SỰ: thêm collection `departments` (đọc mở cho mọi
+// user đã đăng nhập, ghi chỉ admin) và MỘT nhánh update MỚI trên
+// `users/{userId}` cho phép admin sửa field nhân sự — position/
+// departmentId/departmentName/employmentStatus/phone — của MỘT NGƯỜI BẤT
+// KỲ, tách biệt hoàn toàn và KHÔNG đụng tới role/email/displayName/
+// photoURL/createdAt)
+// + Phase 11 module LỊCH & CHẤM CÔNG: thêm HAI collection mới, KHÔNG đụng
+// tới bất kỳ rule nào ở trên (users/departments/projects/tasks giữ
+// nguyên 100%):
+//   - `events` (Lịch, `/lich`): đọc mở cho mọi user đã đăng nhập (cùng
+//     nguyên tắc với projects/tasks/departments). Ghi giới hạn theo
+//     `scope`: sự kiện `personal` chỉ chủ sự kiện tự quản lý, sự kiện
+//     `company` chỉ admin tạo/sửa/xóa được.
+//   - `attendance` (Chấm công, `/cham-cong`): KHÁC các collection trên —
+//     đọc CŨNG bị giới hạn (đây là giờ vào/ra riêng của từng người, không
+//     phải dữ liệu phối hợp công việc chung). User chỉ đọc/ghi được bản
+//     ghi của chính mình; admin chỉ ĐỌC toàn bộ (xem/lọc/tổng hợp), không
+//     có quyền ghi hộ nhân viên.
+// + Phase 12 module TIN NHẮN: thêm HAI collection mới, KHÔNG đụng tới bất
+// kỳ rule nào ở trên (users/departments/projects/tasks/events/attendance
+// giữ nguyên 100%):
+//   - `conversations` (Tin nhắn, `/tin-nhan`): KHÁC HẲN
+//     projects/tasks/events — đọc bị giới hạn CHỈ cho participant của
+//     CHÍNH cuộc trò chuyện đó, kể cả admin. Admin KHÔNG mặc nhiên đọc
+//     được hội thoại riêng tư chỉ vì có role admin — đây là yêu cầu bảo
+//     mật bắt buộc của Phase 12. Ghi bị khóa gần như tuyệt đối: không ai
+//     đổi được `participantIds` sau khi tạo (không tự thêm mình/người
+//     khác vào một cuộc trò chuyện đã có).
+//   - `conversations/{id}/messages` (subcollection): đọc/tạo CHỈ dành cho
+//     participant của conversation cha (kiểm tra qua `get()` trên chính
+//     conversation đó). Người gửi chỉ tạo được message với đúng
+//     `senderId` của mình — không giả mạo được. KHÔNG có nhánh sửa/xóa —
+//     Phase 12 không triển khai edit/delete tin nhắn.
+// + Phase 12.x — CHAT NHÓM do Admin quản lý (mở rộng ngay trong khối
+// `conversations` ở trên, KHÔNG tạo collection mới, KHÔNG sửa/xóa nhánh
+// direct-chat nào của Phase 12):
+//   - `allow create`: thêm MỘT nhánh mới — CHỈ admin tạo được conversation
+//     `type == 'group'` (validate tên/số thành viên/`createdBy`), nhánh
+//     direct-chat cũ giữ nguyên 100%.
+//   - `allow update`: thêm MỘT nhánh mới — CHỈ admin, và CHỈ khi
+//     `resource.data.type == 'group'`, và CHỈ khi admin đó ĐANG là
+//     participant của chính group (không mặc nhiên đọc/sửa mọi group),
+//     mới được đổi `name`/`participantIds`/`participants`; `type`/
+//     `createdBy`/`createdAt` khóa cứng, người tạo luôn phải còn trong
+//     `participantIds`. Nhánh update "tóm tắt tin nhắn cuối/đã đọc" của
+//     Phase 12 giữ nguyên và dùng chung cho cả direct lẫn group (mọi
+//     participant, không riêng admin, đều cần ghi `unreadCounts` khi gửi
+//     tin nhắn).
+//   - `messages` subcollection: KHÔNG đổi — rule đã tổng quát theo
+//     `participantIds` của conversation cha nên tự động áp dụng đúng cho
+//     cả group.
+// + Phase 14 module THÔNG BÁO: thêm MỘT collection mới `notifications`,
+// KHÔNG đụng tới bất kỳ rule nào ở trên (users/departments/projects/tasks/
+// events/attendance/conversations/messages giữ nguyên 100%):
+//   - `notifications` (`/thong-bao`): đọc CHỈ chủ sở hữu (`userId`) — như
+//     `attendance`/`conversations`, admin KHÔNG mặc nhiên đọc được thông
+//     báo riêng tư của người khác. Tạo CHỈ admin (vì cả 4 loại thông báo
+//     hiện có đều phát sinh từ hành động chỉ-admin-mới-làm-được ở
+//     collection gốc — gán assignee/manager, thêm thành viên group),
+//     `actorId` bắt buộc khớp `request.auth.uid`, `type` giới hạn đúng 4
+//     giá trị đang triển khai. Cập nhật CHỈ chủ sở hữu và CHỈ đổi field
+//     `read`. Xóa CHỈ chủ sở hữu.
+// + Phase 15 — hai thay đổi, KHÔNG đụng gì khác:
+//   - Collection MỚI `positions` (danh mục chức vụ, dùng ở trang "Quản lý
+//     người dùng"): đọc mở cho mọi user đã đăng nhập, tạo/xóa chỉ admin —
+//     cùng nguyên tắc với `departments`.
+//   - `notifications`: mở thêm MỘT nhánh `allow create` mới (song song
+//     nhánh admin cũ, không thay nhánh cũ) cho 3 loại thông báo LỊCH
+//     (`event_invited`/`event_updated`/`event_cancelled`) — chỉ chủ một
+//     sự kiện mới tạo được, chỉ gửi được cho người có trong
+//     `participantIds` của đúng sự kiện đó. `events` có thêm field
+//     denormalize MỚI `participantIds` (list string) phục vụ riêng việc
+//     kiểm tra này — không đổi field nào khác của `events`.
+//
+// Phase 9 CHỈ SIẾT, KHÔNG NỚI quyền so với Phase 8 — chi tiết ở khối `users`.
+// Phase 10 CHỈ THÊM một nhánh update mới có phạm vi bị khóa cứng bằng
+// field-lock + validate kiểu dữ liệu — không nới bất kỳ nhánh nào đã có,
+// không đổi cơ chế bảo vệ role. Phase 11 CHỈ THÊM hai collection mới —
+// không sửa, không xóa bất kỳ block nào của Phase 1-10. Phase 12 CHỈ THÊM
+// hai collection mới ở cuối file — không sửa, không xóa bất kỳ block nào
+// của Phase 1-11. Phase 12.x CHỈ THÊM nhánh create/update MỚI bên trong
+// khối `conversations` đã có — không sửa, không xóa bất kỳ nhánh nào của
+// Phase 1-12 (đặc biệt: direct-chat create/update và toàn bộ block
+// `messages` giữ nguyên bit-for-bit). Phase 14 CHỈ THÊM một collection mới
+// `notifications` ở cuối file — không sửa, không xóa bất kỳ block nào của
+// Phase 1-12.x. Project KHÔNG có Firebase Storage —
+// không có file `storage.rules`, không cần triển khai Storage.
+//
+// File này KHÔNG được tự động triển khai bởi source code (project chưa có
+// Firebase CLI config — không có firebase.json). Để áp dụng, vào:
+//   Firebase Console → Firestore Database → Rules → dán toàn bộ nội dung
+//   file này → Publish.
+//
+// Nguyên tắc cốt lõi (khớp với `src/services/userService.js`):
+//  - Mỗi user có đúng một document `users/{uid}`, chứa field `role`
+//    ('user' | 'admin').
+//  - Khi tạo mới: role BẮT BUỘC phải là 'user' — client không có cách nào
+//    tạo hồ sơ với role 'admin' (kể cả nếu chỉnh sửa request từ DevTools).
+//  - Khi cập nhật: một user thường CHỈ được sửa hồ sơ CỦA CHÍNH MÌNH, và
+//    CHỈ được đổi `displayName`/`photoURL`/`updatedAt` — `role` và
+//    `createdAt` bắt buộc giữ nguyên, `email` (nếu đổi) phải khớp đúng
+//    email thật trong ID token đã xác thực chứ không phải giá trị tự gõ.
+//    User KHÔNG THỂ tự đổi role của chính mình dù có gọi thẳng Firestore
+//    SDK, bỏ qua UI (trang `/profile`).
+//  - Chỉ tài khoản có `role == 'admin'` (đọc từ chính Firestore, không phải
+//    từ token/claim tự khai) mới được sửa `role` của người khác. Đọc một
+//    hồ sơ CỤ THỂ của người khác cũng chỉ admin; nhưng LIỆT KÊ (list) toàn
+//    bộ collection thì mở cho mọi user đã đăng nhập từ Phase 7, để phục vụ
+//    bộ lọc/picker "người phụ trách" trên Project/Task — không ảnh hưởng gì
+//    đến việc kiểm soát role (xem chi tiết ở khối `users` bên dưới).
+//  - Kể cả admin cũng KHÔNG được đổi role/xóa hồ sơ của chính mình qua rule
+//    này — tránh trường hợp tự hạ quyền/tự xóa và mất quyền quản trị.
+//    (Trang "Quản lý người dùng" cũng tự ẩn thao tác này ở UI.)
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Admin được xác định DUY NHẤT qua field `role` trong Firestore —
+    // không dựa vào email hay bất kỳ giá trị hard-code nào.
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      // Phase 9 — `photoURL` là URL ảnh do người dùng tự dán (ô "URL ảnh đại
+      // diện" ở `/profile`), không phải file upload lên Storage. Chặn việc
+      // nhét dữ liệu lớn vào hồ sơ (vd. `data:` URI hàng trăm KB, khiến
+      // `listUserProfiles()` phình to cho MỌI user vì collection này ai đăng
+      // nhập cũng list được).
+      function isValidPhotoURL(data) {
+        return !data.keys().hasAny(['photoURL'])
+          || data.photoURL == null
+          || (data.photoURL is string && data.photoURL.size() <= 2048);
+      }
+
+      // Phase 10 — validate field NHÂN SỰ mà admin ghi qua
+      // `updatePersonnelProfile()`. Mỗi field: hoặc không có mặt trong
+      // request, hoặc null (nghĩa là "chưa có"/"gỡ khỏi phòng ban"), hoặc
+      // đúng kiểu + độ dài hợp lý. `employmentStatus` phải nằm trong tập
+      // giá trị cố định khớp `data/employeeMeta.js`.
+      function isValidPersonnelPatch(data) {
+        return
+          (!data.keys().hasAny(['position'])
+            || data.position == null
+            || (data.position is string && data.position.size() <= 80)) &&
+          (!data.keys().hasAny(['departmentId'])
+            || data.departmentId == null
+            || (data.departmentId is string && data.departmentId.size() <= 128)) &&
+          (!data.keys().hasAny(['departmentName'])
+            || data.departmentName == null
+            || (data.departmentName is string && data.departmentName.size() <= 80)) &&
+          (!data.keys().hasAny(['phone'])
+            || data.phone == null
+            || (data.phone is string && data.phone.size() <= 30)) &&
+          (!data.keys().hasAny(['employmentStatus'])
+            || data.employmentStatus == null
+            || (data.employmentStatus is string
+                && data.employmentStatus in ['active', 'on_leave', 'resigned']));
+      }
+
+      // Đọc: chính chủ luôn đọc được hồ sơ của mình; đọc hồ sơ MỘT người
+      // khác cụ thể (get) chỉ dành cho admin.
+      //
+      // Liệt kê toàn bộ (list) — Phase 7: không chỉ trang Quản lý người
+      // dùng (admin) mới cần danh sách này nữa. Bộ lọc "Người phụ trách"
+      // trên Project/Task (ProjectFilters/TaskFilters) và các picker chọn
+      // manager/assignee giờ hiển thị user thật cho MỌI tài khoản đã đăng
+      // nhập, không riêng admin — nên list phải mở cho isSignedIn(), không
+      // còn giới hạn isAdmin(). Đây KHÔNG làm yếu bảo mật role: list chỉ
+      // cho đọc tên/email/photoURL/role công khai trong nội bộ (tương tự
+      // một danh bạ nhân sự), còn việc ĐỔI role vẫn tuyệt đối chỉ admin
+      // (xem `allow update` bên dưới) — không có gì ở đây cho phép user
+      // thường tự sửa hồ sơ người khác hay leo thang quyền.
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn();
+
+      // Tạo hồ sơ lần đầu: chỉ chính chủ, và role phải là 'user'.
+      //
+      // Phase 9 siết thêm (không nới): `email` khi TẠO cũng phải khớp email
+      // thật trong ID token — trước đây chỉ nhánh update kiểm tra điều này,
+      // nên một user có thể tạo hồ sơ đầu tiên của chính mình với email giả.
+      // `ensureUserProfile()` luôn ghi `firebaseUser.email` nên hợp lệ.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.email == request.auth.token.email
+        && isValidPhotoURL(request.resource.data);
+
+      // Cập nhật — 3 nhánh RIÊNG BIỆT, không nhánh nào cho phép vượt phạm vi:
+      //
+      //  (a) Admin đổi ROLE của MỘT NGƯỜI KHÁC — đây là cách DUY NHẤT một
+      //      tài khoản được nâng lên 'admin' hoặc hạ xuống 'user'. Không tự
+      //      đổi role chính mình (`request.auth.uid != userId`), kể cả khi
+      //      là admin — tránh tự hạ quyền/tự khóa quyền quản trị.
+      //
+      //      Phase 9 siết thêm: request CHỈ được đổi đúng field `role`
+      //      (`affectedKeys().hasOnly(['role'])`, khớp chính xác payload của
+      //      `updateUserRole()`), và giá trị mới phải nằm trong tập role hợp
+      //      lệ. Trước đây admin có thể ghi kèm BẤT KỲ field nào của người
+      //      khác — kể cả `photoURL`/`displayName` — miễn là đổi cả role
+      //      trong cùng một request. Yêu cầu Phase 9 là admin KHÔNG được
+      //      sửa avatar của user khác khi UI chưa có chức năng đó, nên nhánh
+      //      này bị bó lại đúng bằng những gì AdminUsersPage thật sự gửi.
+      //
+      //  (b) Chính chủ tự sửa HỒ SƠ của mình (trang `/profile`) — CHỈ
+      //      `displayName`/`photoURL`/`updatedAt` được đổi tự do:
+      //        - `role` và `createdAt` bắt buộc giữ nguyên giá trị cũ.
+      //        - `email` nếu đổi thì giá trị mới PHẢI khớp đúng email thật
+      //          trong ID token đã xác thực (`request.auth.token.email`) —
+      //          không phải giá trị client tự gõ. Đây chính là cơ chế cho
+      //          phép `ensureUserProfile()` tự đồng bộ email khi Firebase
+      //          Auth đổi (hợp lệ), đồng thời CHẶN user tự ghi một email
+      //          giả tùy ý vào hồ sơ của chính họ (yêu cầu bảo mật Phase 8).
+      //        - Phase 9: danh sách field được đổi bị khóa bằng
+      //          `affectedKeys().hasOnly([...])` — user không thể thêm field
+      //          lạ vào hồ sơ của chính mình, và `photoURL` phải là chuỗi
+      //          ngắn (xem `isValidPhotoURL`). Tập field này khớp đúng
+      //          payload của `updateOwnProfile()` + `ensureUserProfile()`.
+      //
+      //      Admin KHÔNG có nhánh riêng để sửa displayName/photoURL của
+      //      NGƯỜI KHÁC — tính năng này chưa tồn tại ở UI (AdminUsersPage
+      //      chỉ đổi role) nên không cấp thêm quyền chưa cần dùng tới.
+      //
+      //  (c) [MỚI — Phase 10] Admin sửa FIELD NHÂN SỰ (position/
+      //      departmentId/departmentName/employmentStatus/phone) của MỘT
+      //      NGƯỜI BẤT KỲ, kể cả chính mình — dùng ở module Nhân sự
+      //      (`updatePersonnelProfile()`, `pages/NhanSuPage.jsx`). Field bị
+      //      khóa cứng bằng `hasOnly([...])` giống hệt payload hàm đó gửi;
+      //      `role`/`email`/`createdAt`/`displayName`/`photoURL` BẮT BUỘC
+      //      giữ nguyên giá trị cũ — nhánh này không thể dùng để leo thang
+      //      role hay sửa hồ sơ cá nhân (đã thuộc nhánh (b), chỉ chính chủ
+      //      mới đổi được). Giá trị mới validate qua `isValidPersonnelPatch`.
+      allow update: if isSignedIn() && (
+        (
+          isAdmin() &&
+          request.auth.uid != userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']) &&
+          request.resource.data.role != resource.data.role &&
+          request.resource.data.role in ['user', 'admin']
+        ) ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['displayName', 'photoURL', 'email', 'updatedAt']) &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.email == request.auth.token.email &&
+          isValidPhotoURL(request.resource.data)
+        ) ||
+        (
+          isAdmin() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['position', 'departmentId', 'departmentName', 'employmentStatus', 'phone', 'updatedAt']) &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.email == resource.data.email &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          request.resource.data.displayName == resource.data.displayName &&
+          request.resource.data.photoURL == resource.data.photoURL &&
+          isValidPersonnelPatch(request.resource.data)
+        )
+      );
+
+      // Xóa hồ sơ người dùng: chỉ admin, và không tự xóa chính mình.
+      allow delete: if isAdmin() && request.auth.uid != userId;
+    }
+
+    // ============================================================
+    // Phase 10 — phòng ban, dùng ở module Nhân sự (`/nhan-su`, tab "Cơ cấu
+    // tổ chức"). Đọc mở cho MỌI user đã đăng nhập — cùng nguyên tắc với
+    // `users` list ở Phase 7, vì cơ cấu tổ chức là thông tin nội bộ ai
+    // cũng cần xem, không phải dữ liệu quản trị riêng của admin. Ghi
+    // (tạo/sửa/xóa) chỉ admin — không validate field chi tiết như `users`
+    // vì admin đã được tin cậy ghi qua UI hợp lệ (cùng mức độ với
+    // `projects`/`tasks` phía dưới, vốn cũng chỉ khóa theo role).
+    match /departments/{departmentId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================
+    // Phase 15 — danh mục CHỨC VỤ, dùng ở trang "Quản lý người dùng"
+    // (quản lý danh mục — thêm/xóa) và ô chọn chức vụ ở module Nhân sự
+    // (`PersonnelDetailModal`). CÙNG nguyên tắc quyền với `departments`
+    // ngay phía trên: đọc mở cho mọi user đã đăng nhập (ai cũng cần thấy
+    // danh mục để chọn/hiển thị), ghi chỉ admin.
+    //
+    // KHÔNG có `allow update` — tính năng hiện tại chỉ "thêm chức vụ mới"
+    // / xóa, chưa có UI đổi tên một chức vụ đã tồn tại; không cấp quyền
+    // chưa cần dùng tới (cùng nguyên tắc đã áp dụng nhiều nơi trong file
+    // này — ví dụ admin không sửa được displayName người khác vì UI chưa
+    // có chức năng đó).
+    match /positions/{positionId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 80 &&
+        request.resource.data.createdAt is string;
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================
+    // Phase 5 — phân quyền nghiệp vụ Project/Task.
+    //
+    // Project: từ Phase 6, `manager.id` LÀ Firebase Auth uid thật (trước đó
+    // là id giả từ danh sách members tĩnh) — xem `userService.toPersonRef()`.
+    // Dù vậy, kiến trúc Kanban/danh sách hiện tại của app cho mọi tài khoản
+    // đã đăng nhập xem toàn bộ Project để phối hợp công việc; Phase 6 yêu
+    // cầu KHÔNG tự ý thu hẹp UX này chỉ vì giờ đã có uid thật để lọc — nên
+    // giữ nguyên `read: isSignedIn()`. Ghi (create/update/delete) vẫn chỉ
+    // admin, không đổi so với Phase 5.
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Task: từ Phase 6, `assignee.id` LÀ Firebase Auth uid thật (xem
+    // `userService.toPersonRef()` — trước đó là id giả từ danh sách members
+    // tĩnh). Nhờ vậy có thể enforce đúng "chỉ user được giao mới sửa được
+    // Task của chính họ" ở tầng rules, không chỉ dựa vào field bất biến.
+    //  - Đọc: mọi tài khoản đã đăng nhập (giữ nguyên UX bảng Kanban hiện
+    //    tại — xem chú thích ở khối `projects` phía trên, lý do tương tự).
+    //  - Tạo/xóa: chỉ admin (admin là người giao việc).
+    //  - Sửa: admin sửa toàn bộ field. User thường CHỈ được sửa
+    //    status/priority/checklist, VÀ CHỈ trên Task đang gán cho chính họ
+    //    (resource.data.assignee.id == request.auth.uid) — User A không
+    //    thể sửa Task đang gán cho User B dù có gọi thẳng Firestore SDK.
+    //    5 field còn lại (title, description, assignee, deadline,
+    //    createdAt) phải giữ nguyên — user không tự đổi người phụ trách.
+    //    Task cũ (assignee.id là id giả từ trước Phase 6, hoặc chưa phân
+    //    công) sẽ không khớp uid nào → user thường tạm thời không sửa
+    //    được cho tới khi admin gán lại bằng user thật; dữ liệu không bị
+    //    xóa hay hỏng, chỉ chờ admin reassign.
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow delete: if isAdmin();
+
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.assignee != null &&
+        resource.data.assignee.id == request.auth.uid &&
+        request.resource.data.title == resource.data.title &&
+        request.resource.data.description == resource.data.description &&
+        request.resource.data.assignee == resource.data.assignee &&
+        request.resource.data.deadline == resource.data.deadline &&
+        request.resource.data.createdAt == resource.data.createdAt
+      );
+    }
+
+    // ============================================================
+    // Phase 11 — sự kiện LỊCH (`/lich`), collection `events`.
+    //
+    // Đọc mở cho MỌI user đã đăng nhập — cùng nguyên tắc với
+    // `projects`/`tasks`/`departments` ở trên: đây là công cụ phối hợp nội
+    // bộ (lịch họp, sự kiện chung), không phải dữ liệu riêng tư từng
+    // người, nên không thu hẹp UX xem lịch của đồng nghiệp — kể cả xem
+    // lịch cá nhân của người khác nếu họ mời mình tham gia
+    // (`event.participants`).
+    //
+    // Ghi bị giới hạn theo PHẠM VI (`scope`) của sự kiện — khớp yêu cầu
+    // Phase 11 "User quản lý được lịch cá nhân theo quyền" / "Admin có
+    // thể quản lý lịch chung":
+    //  - `scope: 'personal'`: chỉ chủ sự kiện (`ownerId`) tạo được (với
+    //    chính uid của mình), và chỉ chủ sự kiện sửa/xóa được sau đó.
+    //  - `scope: 'company'`: chỉ admin tạo được, và chỉ admin sửa/xóa
+    //    được sau đó. User thường KHÔNG tự tạo được sự kiện
+    //    `scope: 'company'` dù có gọi thẳng Firestore SDK bỏ qua UI.
+    //  - `ownerId` và `scope` bị khóa cứng — không đổi được qua update,
+    //    tránh việc "chuyển nhượng" sự kiện cá nhân thành sự kiện chung
+    //    (hoặc ngược lại) để né quyền quản lý.
+    match /events/{eventId} {
+      // [Phase 15] `participantIds` (list string, denormalize từ
+      // `participants`) không được validate ở đây — client
+      // (`eventService.js`) luôn tự tính lại field này mỗi lần
+      // tạo/sửa, cùng mức tin cậy đã áp dụng cho `departmentName`
+      // denormalize từ `departmentId` ở Phase 10. Field này CHỈ được
+      // dùng ở phía đọc, bởi rule `notifications` bên dưới.
+      function isValidEventPayload(data) {
+        return data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+          data.date is string &&
+          data.ownerId is string &&
+          data.scope in ['personal', 'company'];
+      }
+
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn() &&
+        request.resource.data.ownerId == request.auth.uid &&
+        isValidEventPayload(request.resource.data) &&
+        (
+          request.resource.data.scope == 'personal' ||
+          (request.resource.data.scope == 'company' && isAdmin())
+        );
+
+      allow update: if isSignedIn() &&
+        isValidEventPayload(request.resource.data) &&
+        request.resource.data.ownerId == resource.data.ownerId &&
+        request.resource.data.scope == resource.data.scope &&
+        (
+          (resource.data.scope == 'personal' && resource.data.ownerId == request.auth.uid) ||
+          (resource.data.scope == 'company' && isAdmin())
+        );
+
+      allow delete: if isSignedIn() &&
+        (
+          (resource.data.scope == 'personal' && resource.data.ownerId == request.auth.uid) ||
+          (resource.data.scope == 'company' && isAdmin())
+        );
+    }
+
+    // ============================================================
+    // Phase 11 — CHẤM CÔNG (`/cham-cong`), collection `attendance`.
+    //
+    // KHÁC với `events`/`projects`/`tasks`/`departments` ở trên: đây là
+    // giờ vào/ra CỦA TỪNG CÁ NHÂN — không mở đọc chung cho mọi user, khớp
+    // yêu cầu Phase 11 "User chỉ được thao tác dữ liệu chấm công của
+    // chính mình. Admin được xem/quản lý dữ liệu cần thiết của nhân
+    // viên." — "quản lý" của admin ở đây được triển khai là XEM/LỌC/TỔNG
+    // HỢP (bảng chấm công toàn công ty + bộ lọc theo nhân viên/ngày/
+    // trạng thái ở AttendancePage), KHÔNG bao gồm quyền ghi/sửa hộ giờ
+    // chấm công của nhân viên — tránh mở quyền ghi rộng hơn mức cần
+    // thiết cho một tính năng chưa tồn tại ở UI.
+    //
+    // Mỗi document đại diện đúng MỘT ngày công của MỘT user, id BẮT BUỘC
+    // theo định dạng `${uid}_${date}` — ràng buộc được kiểm tra trực tiếp
+    // trên ID tài liệu khi tạo (không chỉ dựa vào field `userId` bên
+    // trong), vừa chặn tạo 2 bản ghi cho cùng 1 ngày, vừa chặn giả mạo
+    // chấm công hộ người khác dưới một ID document tùy ý.
+    match /attendance/{attendanceId} {
+      function isValidAttendancePayload(data) {
+        return data.userId is string &&
+          data.date is string &&
+          data.checkInAt is string;
+      }
+
+      // Đọc: chính chủ đọc bản ghi CỦA MÌNH; admin đọc TOÀN BỘ. Vì mọi
+      // truy vấn `list` của user thường LUÔN lọc theo
+      // `where('userId', '==', uid)` (xem
+      // `firestoreAttendanceService.listMyAttendance`), mọi tài liệu trả
+      // về đều tự nhiên thỏa nhánh đầu; với admin, `isAdmin()` không phụ
+      // thuộc `resource.data` nên đúng với MỌI tài liệu — vì vậy rule
+      // này an toàn cho cả truy vấn có lọc (user) lẫn không lọc (admin
+      // xem toàn bộ, `listAllAttendance()`).
+      //
+      // [PHASE 13 — BUG FIX] `resource == null ||` BẮT BUỘC phải có, cùng
+      // lý do đã áp dụng cho `conversations` ở Phase 12:
+      // `firestoreAttendanceService.getAttendanceRecord()` VÀ `checkIn()`
+      // đều gọi `getDoc()` lên document `${uid}_${date}` TRƯỚC KHI biết nó
+      // có tồn tại hay không (`AttendancePage.jsx` gọi hàm này ngay khi
+      // tải trang để biết "hôm nay đã chấm công chưa"). Với document CHƯA
+      // TỪNG tồn tại (lần chấm công đầu tiên trong ngày của MỌI user, kể
+      // cả admin), `resource` là `null` — nếu rule đọc thẳng
+      // `resource.data.userId` mà không kiểm tra `null` trước, biểu thức
+      // LỖI ngay khi evaluate và Firestore trả về `permission-denied` cho
+      // `getDoc()` đó thay vì đơn giản là "tài liệu không tồn tại"
+      // (`snapshot.exists() === false`). Đây từng là bug thật — user (và
+      // cả admin) sẽ thấy lỗi "Missing or insufficient permissions" ngay
+      // lần đầu mở `/cham-cong` trong ngày, TRƯỚC CẢ KHI kịp bấm chấm công
+      // vào. Cho phép đọc khi `resource == null` không lộ dữ liệu gì —
+      // không có gì để đọc — nên không nới lỏng bảo mật.
+      allow read: if isSignedIn() &&
+        (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+
+      // Tạo bản ghi CHẤM CÔNG VÀO — CHỈ chính chủ, và ID tài liệu phải
+      // đúng bằng `${uid}_${date}`.
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        attendanceId == request.auth.uid + '_' + request.resource.data.date &&
+        request.resource.data.checkOutAt == null &&
+        isValidAttendancePayload(request.resource.data);
+
+      // Cập nhật — CHỈ dùng để ghi CHẤM CÔNG RA của CHÍNH chủ, và CHỈ khi
+      // chưa check-out trước đó (chặn sửa lại giờ ra tùy ý sau khi đã
+      // chốt). Field bị khóa cứng đúng bằng payload
+      // `firestoreAttendanceService.checkOut()` gửi — không cho đổi
+      // `userId`/`date`/`checkInAt` hay bất kỳ field nào khác qua nhánh
+      // này. Admin KHÔNG có nhánh ghi ở đây (xem giải thích ở đầu khối).
+      allow update: if isSignedIn() &&
+        request.auth.uid == resource.data.userId &&
+        resource.data.checkOutAt == null &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['checkOutAt', 'checkOutStatus', 'checkOutEarlyMinutes', 'updatedAt']) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.date == resource.data.date &&
+        request.resource.data.checkInAt == resource.data.checkInAt &&
+        request.resource.data.checkOutAt is string;
+
+      // Không có nhánh xóa — kể cả admin. Lịch sử chấm công không bị xóa
+      // qua ứng dụng (không có tính năng này ở UI Phase 11).
+    }
+
+    // ============================================================
+    // Phase 12 — TIN NHẮN (`/tin-nhan`), collection `conversations` +
+    // subcollection `conversations/{conversationId}/messages`.
+    // Phase 12.x mở rộng NGAY TRONG khối này để thêm chat NHÓM do Admin
+    // quản lý — xem ghi chú "Phase 12.x" ở phần đầu file.
+    //
+    // Đọc vẫn giữ nguyên NGUYÊN TẮC BẢO MẬT của Phase 12 cho CẢ group:
+    // không nhánh nào ở đây gọi `isAdmin()` để MỞ RỘNG quyền đọc — một
+    // cuộc trò chuyện/tin nhắn (direct hay group) chỉ đọc được bởi CHÍNH
+    // những người có mặt trong `participantIds`. Admin CÓ dùng `isAdmin()`
+    // nhưng CHỈ ở nhánh ghi (create/update) để xác định "được phép TẠO/
+    // QUẢN LÝ nhóm hay không" — không dùng để mở rộng quyền ĐỌC. Admin
+    // không phải participant của một group vẫn KHÔNG đọc được group đó,
+    // giống hệt tinh thần Phase 12 với direct chat.
+    match /conversations/{conversationId} {
+      // Chat 1–1: đúng 2 participant, id tài liệu BẮT BUỘC là
+      // `dm_{uidNhỏHơn}_{uidLớnHơn}` (so sánh chuỗi trên chính 2 uid đã
+      // lưu) — vừa chặn tạo 2 conversation khác id cho cùng một cặp
+      // người ngay ở tầng rules (không chỉ dựa vào code client), vừa
+      // buộc `request.auth.uid` phải là MỘT trong 2 participant khai báo.
+      //
+      // `resource == null ||` — BẮT BUỘC phải có: đây là bước "đã tồn
+      // tại cuộc trò chuyện này chưa?" trong
+      // `firestoreMessageService.getOrCreateDirectConversation()`
+      // (`getDoc(ref)` TRƯỚC khi tạo). Với một document CHƯA TỪNG tồn
+      // tại (lần đầu 2 người nhắn tin), Firestore đánh giá `resource` là
+      // `null` — nếu rule đọc thẳng `resource.data.participantIds` mà
+      // không kiểm tra `null` trước, biểu thức sẽ LỖI ngay khi evaluate
+      // (không phải "false") và Firestore trả về CHÍNH XÁC
+      // `permission-denied` cho `getDoc()` đó, dù về logic tài liệu chỉ
+      // đơn giản là chưa tồn tại. Đây từng là nguyên nhân lỗi
+      // "Không thể bắt đầu cuộc trò chuyện" khi bắt đầu chat MỚI (không
+      // xảy ra khi mở lại conversation đã có, vì khi đó `resource` khác
+      // `null`). Cho phép đọc khi `resource == null` không lộ dữ liệu gì
+      // — không có gì để đọc — nên không nới lỏng bảo mật.
+      allow read: if isSignedIn() &&
+        (resource == null || request.auth.uid in resource.data.participantIds);
+
+      // [MỚI] Validate `description` (tùy chọn, luôn được client gửi dưới
+      // dạng chuỗi rỗng '' nếu không nhập — KHÔNG dùng `null`/thiếu field,
+      // để rule không phải xử lý "optional key" phức tạp) và `photoURL`
+      // (tùy chọn THẬT — có thể là `null` vì không phải mọi group đều có
+      // ảnh; nếu có thì phải là URL dạng string, KHÔNG dùng Firebase
+      // Storage nên không giới hạn domain, chỉ giới hạn độ dài hợp lý).
+      function isValidGroupDescription(value) {
+        return value is string && value.size() <= 500;
+      }
+
+      function isValidGroupPhotoURL(value) {
+        return value == null || (value is string && value.size() <= 2048);
+      }
+
+      allow create: if isSignedIn() &&
+        (
+          // Chat 1–1 (Phase 12 — giữ nguyên 100%, không sửa nhánh này).
+          (
+            request.resource.data.type == 'direct' &&
+            request.resource.data.participantIds is list &&
+            request.resource.data.participantIds.size() == 2 &&
+            request.resource.data.participantIds[0] < request.resource.data.participantIds[1] &&
+            conversationId == 'dm_' + request.resource.data.participantIds[0] + '_' + request.resource.data.participantIds[1] &&
+            request.auth.uid in request.resource.data.participantIds
+          )
+          ||
+          // [MỚI — Phase 12.x] Chat nhóm — CHỈ admin được tạo. ID tài liệu
+          // KHÔNG bị ràng buộc tất định như direct (mỗi group có ID riêng
+          // do client sinh kiểu `group_{randomId}` — xem
+          // `firestoreMessageService.createGroupConversation()`), nhưng
+          // payload bị validate chặt: tên hợp lệ, tối thiểu 2 thành viên,
+          // người tạo phải là chính `request.auth.uid` và phải có mặt
+          // trong `participantIds` (không tạo nhóm rồi tự loại mình khỏi
+          // nhóm ngay từ đầu), `participants` (denormalize) phải tương ứng
+          // 1-1 với `participantIds`. `description`/`photoURL` validate
+          // qua 2 hàm ở trên — client LUÔN gửi cả hai field này (kể cả khi
+          // rỗng/null) nên không cần nhánh "field có thể thiếu".
+          (
+            isAdmin() &&
+            request.resource.data.type == 'group' &&
+            request.resource.data.name is string &&
+            request.resource.data.name.size() > 0 &&
+            request.resource.data.name.size() <= 100 &&
+            isValidGroupDescription(request.resource.data.description) &&
+            isValidGroupPhotoURL(request.resource.data.photoURL) &&
+            request.resource.data.participantIds is list &&
+            request.resource.data.participantIds.size() >= 2 &&
+            request.resource.data.participants is list &&
+            request.resource.data.participants.size() == request.resource.data.participantIds.size() &&
+            request.resource.data.createdBy == request.auth.uid &&
+            request.auth.uid in request.resource.data.participantIds
+          )
+        );
+
+      // Cập nhật — HAI nhánh riêng biệt, không nhánh nào cho phép vượt
+      // phạm vi:
+      //
+      //  (a) [Phase 12 — giữ nguyên] CHỈ participant hiện tại, và CHỈ để
+      //      cập nhật tóm tắt tin nhắn cuối/trạng thái đã đọc
+      //      (`lastMessage`, `lastMessageAt`, `unreadCounts`, `lastReadAt`,
+      //      `updatedAt` — khớp đúng payload của
+      //      `firestoreMessageService.sendMessage()`/`markConversationRead()`).
+      //      `participantIds`/`type`/`participants`/`createdAt` bị khóa
+      //      cứng — không ai "tự thêm mình/người khác vào conversation"
+      //      bằng cách sửa document sau khi đã tạo. Áp dụng cho CẢ direct
+      //      lẫn group — mọi participant (không riêng admin) đều gửi được
+      //      tin nhắn nên đều cần ghi được `unreadCounts` của người khác.
+      //
+      //  (b) [MỚI — Phase 12.x] Admin quản lý chat NHÓM — đổi tên/mô tả/
+      //      ảnh đại diện, thêm/xóa thành viên (`name`, `description`,
+      //      `photoURL`, `participantIds`, `participants`, `updatedAt`).
+      //      CHỈ áp dụng cho conversation có `type == 'group'`
+      //      hiện tại (không đổi được type qua nhánh này). Admin PHẢI đang
+      //      là participant của CHÍNH group đó — admin không mặc nhiên có
+      //      quyền sửa mọi group chỉ vì có role admin (khớp nguyên tắc bảo
+      //      mật đầu khối `conversations`). `createdBy`/`createdAt` bị khóa
+      //      cứng, và người tạo bắt buộc vẫn còn trong `participantIds` sau
+      //      khi cập nhật — không xóa được chính người tạo nhóm.
+      allow update: if isSignedIn() &&
+        (
+          (
+            request.auth.uid in resource.data.participantIds &&
+            request.resource.data.participantIds == resource.data.participantIds &&
+            request.resource.data.type == resource.data.type &&
+            request.resource.data.participants == resource.data.participants &&
+            request.resource.data.createdAt == resource.data.createdAt &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['lastMessage', 'lastMessageAt', 'unreadCounts', 'lastReadAt', 'updatedAt'])
+          )
+          ||
+          (
+            isAdmin() &&
+            resource.data.type == 'group' &&
+            request.auth.uid in resource.data.participantIds &&
+            request.resource.data.type == resource.data.type &&
+            request.resource.data.createdBy == resource.data.createdBy &&
+            request.resource.data.createdAt == resource.data.createdAt &&
+            request.resource.data.name is string &&
+            request.resource.data.name.size() > 0 &&
+            request.resource.data.name.size() <= 100 &&
+            isValidGroupDescription(request.resource.data.description) &&
+            isValidGroupPhotoURL(request.resource.data.photoURL) &&
+            request.resource.data.participantIds is list &&
+            request.resource.data.participantIds.size() >= 2 &&
+            request.resource.data.createdBy in request.resource.data.participantIds &&
+            request.resource.data.participants is list &&
+            request.resource.data.participants.size() == request.resource.data.participantIds.size() &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['name', 'description', 'photoURL', 'participantIds', 'participants', 'updatedAt'])
+          )
+        );
+
+      // Không có nhánh xóa — không triển khai xóa cuộc trò chuyện (direct
+      // hay group) ở Phase 12 / 12.x.
+
+      match /messages/{messageId} {
+        // Participant được xác định bằng CHÍNH conversation cha — `get()`
+        // ở đây đọc trực tiếp document `conversations/{conversationId}`,
+        // không bị chặn bởi rule `allow read` của chính collection đó
+        // (rules function luôn đọc được document để đánh giá điều kiện —
+        // cùng kỹ thuật với `isAdmin()` ở đầu file).
+        function isConversationParticipant() {
+          return isSignedIn() &&
+            exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+            request.auth.uid in
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        }
+
+        allow read: if isConversationParticipant();
+
+        // Người gửi CHỈ tạo được message với đúng `senderId` của chính
+        // mình — không giả mạo được người gửi, và không gửi được vào
+        // conversation mà mình không tham gia (`isConversationParticipant()`).
+        // KHÔNG có nhánh update/delete — tin nhắn bất biến sau khi gửi,
+        // đúng khuyến nghị "nếu không thực sự cần thì tốt nhất không
+        // triển khai" của Phase 12.
+        allow create: if isConversationParticipant() &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.conversationId == conversationId &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 4000 &&
+          request.resource.data.createdAt is string;
+      }
+    }
+
+    // ============================================================
+    // Phase 14 — THÔNG BÁO (`/thong-bao`), collection `notifications`.
+    // [Phase 15 bổ sung] 3 loại thông báo LỊCH (`event_invited`/
+    // `event_updated`/`event_cancelled`) — xem nhánh (b) ở `allow create`
+    // bên dưới. Không đổi field/kiểu dữ liệu chung của document, chỉ mở
+    // thêm MỘT nhánh ghi mới song song nhánh admin cũ.
+    // KHÔNG đụng tới bất kỳ block nào ở trên
+    // (users/departments/projects/tasks/events/attendance/conversations/
+    // messages giữ nguyên 100%).
+    //
+    // Mỗi document là MỘT thông báo cho ĐÚNG MỘT người nhận (`userId`).
+    // Cùng nguyên tắc riêng tư NGHIÊM NGẶT như `conversations`/`attendance`:
+    // KHÔNG nhánh nào ở đây gọi `isAdmin()` để MỞ RỘNG quyền ĐỌC — admin
+    // KHÔNG mặc nhiên đọc được thông báo của người khác chỉ vì có role
+    // admin (đây là dữ liệu cá nhân, không phải dữ liệu phối hợp công việc
+    // chung). `isAdmin()` CHỈ xuất hiện ở nhánh GHI (create), để xác định
+    // "người gọi có phải là actor hợp lệ được phép SINH RA thông báo hay
+    // không" — không liên quan gì tới quyền đọc.
+    match /notifications/{notificationId} {
+      // Đọc: CHỈ chủ sở hữu (`userId`) — kể cả admin cũng không đọc được
+      // thông báo của người khác. Không cần `resource == null ||` như
+      // `conversations`/`attendance` vì KHÔNG có chỗ nào trong
+      // `firestoreNotificationService.js` gọi `getDoc()` lên một document
+      // notification có thể chưa tồn tại — chỉ `onSnapshot(query(...))`
+      // (luôn trả về tài liệu ĐÃ tồn tại) và `updateDoc`/`deleteDoc` theo
+      // id đã biết chắc chắn tồn tại (lấy từ chính danh sách đang hiển
+      // thị).
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      // Tạo: HAI nhánh — (a) admin cho 4 loại thông báo cũ, (b) chủ sự
+      // kiện lịch cho 3 loại MỚI (Phase 15).
+      //
+      // (a) CHỈ admin — vì CẢ BỐN loại thông báo hiện có
+      // (`task_assigned`, `task_updated`, `project_manager_assigned`,
+      // `group_added`) đều chỉ có thể phát sinh từ một hành động mà chính
+      // rules của collection gốc đã giới hạn cho admin:
+      //  - Gán/đổi `assignee` trên `tasks`: CHỈ admin (`allow update` của
+      //    `tasks` khóa `assignee` khỏi field user thường tự sửa được).
+      //  - Gán/đổi `manager` trên `projects`: `allow create/update` của
+      //    `projects` chỉ cho `isAdmin()`.
+      //  - Thêm thành viên vào group chat: nhánh quản lý group của
+      //    `conversations` chỉ cho `isAdmin()`.
+      //
+      // (b) [MỚI — Phase 15] `event_invited`/`event_updated`/
+      // `event_cancelled` — phát sinh khi TẠO/SỬA/XÓA một sự kiện lịch
+      // (xem `components/EventsProvider.jsx`). KHÁC 4 loại ở (a): hành
+      // động gốc (tạo/sửa sự kiện `scope: 'personal'`) KHÔNG giới hạn
+      // isAdmin() — bất kỳ user đã đăng nhập nào cũng là chủ sự kiện của
+      // chính họ (xem `match /events`), nên nhánh notification tương ứng
+      // cũng KHÔNG thể đòi isAdmin(). Thay vào đó, chặn bằng chính danh
+      // tính chủ sự kiện: người gọi PHẢI là `ownerId` của đúng sự kiện
+      // (`relatedId`) đang còn tồn tại, và người NHẬN (`userId`) PHẢI có
+      // mặt trong `participantIds` của sự kiện đó — không thể dùng nhánh
+      // này để nhắn tin/spam một người dùng bất kỳ không liên quan tới sự
+      // kiện. `participantIds` (list string phẳng) là field denormalize
+      // MỚI trên `events` (xem `eventService.js`) — tồn tại RIÊNG cho mục
+      // đích kiểm tra này, vì Firestore Rules không lặp được qua
+      // `participants` (list object) để so khớp id.
+      //
+      // Nếu tương lai có thêm loại thông báo không khớp (a) hay (b), PHẢI
+      // mở rộng đúng theo hành động thật tương ứng — không nới chung
+      // chung cho "mọi user đã đăng nhập" chỉ để "cho chạy".
+      //
+      // `actorId` BẮT BUỘC bằng chính `request.auth.uid` — không giả mạo
+      // được người gửi thông báo (cùng nguyên tắc `senderId` ở `messages`).
+      // `read` bắt buộc `false` khi tạo — không tạo sẵn thông báo "đã đọc".
+      allow create: if
+        request.resource.data.userId is string &&
+        request.resource.data.userId.size() > 0 &&
+        request.resource.data.type is string &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() <= 200 &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() <= 2000 &&
+        request.resource.data.read == false &&
+        request.resource.data.actorId == request.auth.uid &&
+        request.resource.data.createdAt is string &&
+        (request.resource.data.relatedType == null || request.resource.data.relatedType is string) &&
+        (request.resource.data.relatedId == null || request.resource.data.relatedId is string) &&
+        (
+          (
+            isAdmin() &&
+            request.resource.data.type in
+              ['task_assigned', 'task_updated', 'project_manager_assigned', 'group_added']
+          ) ||
+          (
+            isSignedIn() &&
+            request.resource.data.type in ['event_invited', 'event_updated', 'event_cancelled'] &&
+            request.resource.data.relatedType == 'event' &&
+            request.resource.data.relatedId is string &&
+            exists(/databases/$(database)/documents/events/$(request.resource.data.relatedId)) &&
+            get(/databases/$(database)/documents/events/$(request.resource.data.relatedId)).data.ownerId
+              == request.auth.uid &&
+            request.resource.data.userId in
+              get(/databases/$(database)/documents/events/$(request.resource.data.relatedId)).data.participantIds
+          )
+        );
+
+      // Cập nhật: CHỈ chủ sở hữu, và CHỈ để đổi `read` (đánh dấu đã/chưa
+      // đọc — dùng cho cả "đọc một thông báo" lẫn "đánh dấu tất cả đã
+      // đọc"). Mọi field còn lại khóa cứng — user không tự đổi được
+      // `userId` để "chiếm" thông báo của người khác, không sửa được nội
+      // dung/`actorId`/`relatedType`/`relatedId` sau khi tạo.
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.title == resource.data.title &&
+        request.resource.data.message == resource.data.message &&
+        request.resource.data.actorId == resource.data.actorId &&
+        request.resource.data.relatedType == resource.data.relatedType &&
+        request.resource.data.relatedId == resource.data.relatedId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.read is bool &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+
+      // Xóa: CHỈ chủ sở hữu — cho phép tự dọn thông báo của chính mình
+      // (mục "Xóa notification" ở UI `/thong-bao`). Không ai xóa được
+      // thông báo của người khác, kể cả admin/actor đã tạo ra nó.
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

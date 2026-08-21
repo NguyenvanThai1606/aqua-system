@@ -1,0 +1,86 @@
+/* ============================================================
+   AQUA — Khung ứng dụng: sidebar + header + vùng nội dung
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  transition: grid-template-columns var(--transition);
+}
+
+.app-shell-collapsed {
+  grid-template-columns: var(--sidebar-w-rail) minmax(0, 1fr);
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Vùng nội dung là phần duy nhất cuộn được */
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px 48px;
+}
+
+.app-content-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
+/* --- Lớp phủ khi mở sidebar trên tablet --- */
+.app-scrim {
+  display: none;
+}
+
+/* ============================================================
+   Tablet & mobile: sidebar trở thành ngăn kéo trượt
+   ============================================================ */
+
+@media (max-width: 1023.98px) {
+  .app-shell,
+  .app-shell-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-content {
+    padding: 18px 18px 40px;
+  }
+
+  .app-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    width: 100%;
+    background: rgba(8, 15, 30, 0.55);
+    backdrop-filter: blur(2px);
+    animation: scrim-in 160ms ease;
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell {
+    transition: none;
+  }
+
+  .app-scrim {
+    animation: none;
+  }
+}

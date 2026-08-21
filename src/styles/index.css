@@ -1,0 +1,8 @@
+/* ============================================================
+   AQUA — Điểm vào của toàn bộ CSS.
+   Thứ tự import quan trọng: token -> reset -> style chung.
+   ============================================================ */
+
+@import "./variables.css";
+@import "./reset.css";
+@import "./global.css";

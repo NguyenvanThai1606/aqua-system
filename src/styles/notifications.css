@@ -1,0 +1,132 @@
+/* ============================================================
+   AQUA — Thông báo (Phase 14)
+   ============================================================ */
+
+.notification-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  text-align: center;
+  justify-content: center;
+  font-size: 13.5px;
+}
+
+.notification-state-error {
+  color: var(--danger);
+}
+
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-item:last-child {
+  border-bottom: 0;
+}
+
+.notification-item-clickable {
+  cursor: pointer;
+}
+
+.notification-item-clickable:hover {
+  background: var(--surface-hover);
+}
+
+.notification-item-unread {
+  background: var(--primary-soft);
+}
+
+.notification-item-unread.notification-item-clickable:hover {
+  background: var(--primary-soft);
+  filter: brightness(0.97);
+}
+
+.notification-item-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--primary);
+}
+
+.notification-item-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notification-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notification-item-type {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.notification-item-time {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+}
+
+.notification-item-title {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.notification-item-message {
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-item-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.notification-item-delete {
+  flex: 0 0 auto;
+  color: var(--text-subtle);
+}
+
+.notification-item-delete:hover {
+  color: var(--danger);
+}
+
+@media (max-width: 599.98px) {
+  .notification-item {
+    padding: 12px 14px;
+  }
+}

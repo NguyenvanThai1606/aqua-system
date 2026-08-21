@@ -1,0 +1,215 @@
+/* ============================================================
+   AQUA — Module Chấm công (Phase 11)
+   Toàn bộ màu lấy từ token nên tự hoạt động ở chế độ tối.
+   ============================================================ */
+
+.attendance-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.attendance-state {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.attendance-summary {
+  margin: 10px 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+.attendance-total {
+  font-size: 13px;
+}
+
+.attendance-total strong {
+  color: var(--text);
+}
+
+/* ============================================================
+   Tabs (chỉ admin)
+   ============================================================ */
+
+.attendance-tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  gap: 2px;
+}
+
+.attendance-tab {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: calc(var(--radius) - 3px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+.attendance-tab:hover {
+  color: var(--text);
+}
+
+.attendance-tab-active {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   Thẻ Check-in / Check-out
+   ============================================================ */
+
+.attendance-checkcard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.attendance-checkcard-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attendance-checkcard-label {
+  margin: 0 0 6px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.attendance-schedule-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.attendance-schedule-hint strong {
+  color: var(--text);
+}
+
+.attendance-checkcard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.attendance-checkcard-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attendance-checkcard-time {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-checkcard-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.attendance-checkcard-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ============================================================
+   Bảng lịch sử
+   ============================================================ */
+
+.attendance-table-wrap {
+  overflow-x: auto;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.attendance-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.attendance-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.attendance-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.attendance-table-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================================================
+   Bộ lọc admin
+   ============================================================ */
+
+.attendance-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.attendance-filters .field {
+  min-width: 180px;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .attendance-checkcard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-checkcard-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

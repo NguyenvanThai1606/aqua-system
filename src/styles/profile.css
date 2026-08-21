@@ -1,0 +1,49 @@
+/* ============================================================
+   AQUA — Hồ sơ cá nhân (Phase 9: ảnh đại diện = URL tự dán)
+   ============================================================ */
+
+.profile-avatar-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-avatar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profile-avatar-name {
+  font-weight: 600;
+}
+
+.profile-avatar-hint {
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.profile-avatar-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .profile-avatar-block {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-avatar-info {
+    align-items: center;
+  }
+}

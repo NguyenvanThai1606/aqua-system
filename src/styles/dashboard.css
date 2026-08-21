@@ -1,0 +1,222 @@
+/* ============================================================
+   AQUA — Dashboard
+   ============================================================ */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  padding: 17px 19px 19px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-card-alert {
+  border-inline-start: 3px solid var(--danger);
+}
+
+.stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  margin-top: 6px;
+  font-size: 27px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.stat-value-alert {
+  color: var(--danger);
+}
+
+.stat-hint {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--text-subtle);
+}
+
+.dashboard-columns {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .dashboard-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.dashboard-card-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dashboard-card-link:hover {
+  color: var(--primary-hover);
+}
+
+/* ============================================================
+   Danh sách việc / dự án
+   ============================================================ */
+
+.dashboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--transition),
+    background-color var(--transition),
+    box-shadow var(--transition);
+}
+
+.dashboard-list-item:hover {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.dashboard-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.dashboard-list-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-list-progress {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-list-side {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 5px;
+  flex: 0 0 auto;
+  max-width: 42%;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.dashboard-list-side-overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.dashboard-list-side-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   Empty state
+   ============================================================ */
+
+.dashboard-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.dashboard-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.dashboard-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dashboard-empty-text {
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dashboard-empty-action {
+  margin-top: 6px;
+}
+
+/* ============================================================
+   Máy tính bảng & màn hình hẹp
+   ============================================================ */
+
+@media (max-width: 767.98px) {
+  .dashboard-list-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-list-side {
+    max-width: none;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-list-item {
+    transition: none;
+  }
+}

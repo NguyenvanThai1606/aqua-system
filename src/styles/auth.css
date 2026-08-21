@@ -1,0 +1,183 @@
+/* ============================================================
+   AQUA — Đăng nhập / Đăng ký
+   ============================================================ */
+
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  width: 100%;
+  max-width: 920px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+}
+
+/* --- Panel thương hiệu (dùng lại bảng màu sidebar) --- */
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 40px 36px;
+  background: linear-gradient(160deg, var(--sidebar-bg), #0a3b4d 150%);
+  color: var(--sidebar-text-strong);
+}
+
+.auth-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-brand-title {
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.auth-brand-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sidebar-text);
+  max-width: 34ch;
+}
+
+.auth-brand-foot {
+  font-size: 12px;
+  color: var(--sidebar-section);
+}
+
+/* --- Panel form --- */
+.auth-panel {
+  display: flex;
+  align-items: center;
+  padding: 40px 36px;
+}
+
+.auth-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form-title {
+  font-size: 21px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.auth-form-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-field-error {
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.auth-input-error {
+  border-color: var(--danger) !important;
+}
+
+.auth-input-error:focus {
+  box-shadow: 0 0 0 3px var(--danger-soft) !important;
+}
+
+.auth-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.auth-alert svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.auth-switch a {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.auth-switch a:hover {
+  text-decoration: underline;
+}
+
+/* --- Spinner nhỏ trong nút submit --- */
+.auth-spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: auth-spin 0.7s linear infinite;
+}
+
+[data-theme="dark"] .auth-spinner {
+  border: 2px solid rgba(6, 32, 43, 0.35);
+  border-top-color: #06202b;
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Responsive: ẩn panel thương hiệu trên màn hẹp --- */
+@media (max-width: 760px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+    max-width: 440px;
+  }
+
+  .auth-brand {
+    display: none;
+  }
+
+  .auth-panel {
+    padding: 32px 24px;
+  }
+}
