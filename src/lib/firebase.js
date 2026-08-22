@@ -1,11 +1,13 @@
 /**
  * Cấu hình Firebase — chỉ khởi tạo khi đủ biến môi trường Vite.
- * Không hardcode secret; dùng `.env.local` (xem `.env.example`).
  *
- * Phase 9: project CHỈ dùng Firestore + Auth (Firebase Spark, miễn phí).
- * KHÔNG khởi tạo Firebase Storage ở đây — ảnh đại diện giờ là URL người
- * dùng tự dán (xem `pages/ProfilePage.jsx`), không cần upload file nào,
- * nên không cần gói `firebase/storage` và không đòi hỏi nâng cấp Blaze.
+ * Không hardcode secret; dùng .env.local.
+ *
+ * Project sử dụng:
+ * - Firebase Authentication
+ * - Cloud Firestore
+ *
+ * Không sử dụng Firebase Storage.
  */
 
 import { getApp, getApps, initializeApp } from 'firebase/app'
@@ -22,24 +24,44 @@ function readConfig() {
   }
 }
 
-/** true khi có đủ thông tin để kết nối Firestore. */
+/**
+ * Kiểm tra Firebase đã được cấu hình đầy đủ hay chưa.
+ */
 export function isFirebaseConfigured() {
-  const { apiKey, projectId, appId } = readConfig()
-  return Boolean(apiKey && projectId && appId)
+  const {
+    apiKey,
+    authDomain,
+    projectId,
+    messagingSenderId,
+    appId,
+  } = readConfig()
+
+  return Boolean(
+    apiKey &&
+    authDomain &&
+    projectId &&
+    messagingSenderId &&
+    appId
+  )
 }
 
 let appInstance = null
 
 /**
- * Firebase App dùng chung cho mọi service (Firestore, Auth, ...).
- * Đảm bảo chỉ có DUY NHẤT một app được khởi tạo trong toàn bộ ứng dụng.
+ * Lấy Firebase App dùng chung cho toàn bộ ứng dụng.
  */
 function getFirebaseApp() {
-  if (!isFirebaseConfigured()) return null
+  if (!isFirebaseConfigured()) {
+    return null
+  }
 
   if (!appInstance) {
     const config = readConfig()
-    appInstance = getApps().length > 0 ? getApp() : initializeApp(config)
+
+    appInstance =
+      getApps().length > 0
+        ? getApp()
+        : initializeApp(config)
   }
 
   return appInstance
@@ -47,10 +69,17 @@ function getFirebaseApp() {
 
 let dbInstance = null
 
-/** Firestore instance — null nếu chưa cấu hình Firebase. */
+/**
+ * Lấy Firestore instance.
+ *
+ * Trả về null nếu Firebase chưa được cấu hình.
+ */
 export function getDb() {
   const app = getFirebaseApp()
-  if (!app) return null
+
+  if (!app) {
+    return null
+  }
 
   if (!dbInstance) {
     dbInstance = getFirestore(app)
@@ -61,10 +90,17 @@ export function getDb() {
 
 let authInstance = null
 
-/** Firebase Auth instance — null nếu chưa cấu hình Firebase. */
+/**
+ * Lấy Firebase Authentication instance.
+ *
+ * Trả về null nếu Firebase chưa được cấu hình.
+ */
 export function getFirebaseAuth() {
   const app = getFirebaseApp()
-  if (!app) return null
+
+  if (!app) {
+    return null
+  }
 
   if (!authInstance) {
     authInstance = getAuth(app)
@@ -73,7 +109,11 @@ export function getFirebaseAuth() {
   return authInstance
 }
 
-/** Backend đang dùng — hữu ích khi debug. */
+/**
+ * Backend hiện tại của ứng dụng.
+ */
 export function getDataBackend() {
-  return isFirebaseConfigured() ? 'firestore' : 'local'
+  return isFirebaseConfigured()
+    ? 'firestore'
+    : 'local'
 }
