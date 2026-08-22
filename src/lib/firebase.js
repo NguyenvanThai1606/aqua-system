@@ -1,119 +1,140 @@
 /**
- * Cấu hình Firebase — chỉ khởi tạo khi đủ biến môi trường Vite.
- *
- * Không hardcode secret; dùng .env.local.
- *
- * Project sử dụng:
- * - Firebase Authentication
- * - Cloud Firestore
- *
- * Không sử dụng Firebase Storage.
- */
+
+* Cấu hình Firebase cho Vite.
+*
+* Không hardcode secret.
+* Giá trị được lấy từ .env.local khi chạy local
+* và từ Environment Variables trên Vercel khi deploy.
+*
+* Project sử dụng:
+* * Firebase Authentication
+* * Cloud Firestore
+*
+* Không sử dụng Firebase Storage.
+  */
 
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
-function readConfig() {
+/**
+
+* Đọc Firebase config từ Vite environment.
+*
+* trim() giúp loại bỏ khoảng trắng thừa nếu có.
+  */
+  function readConfig() {
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: String(import.meta.env.VITE_FIREBASE_API_KEY ?? '').trim(),
+  authDomain: String(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '').trim(),
+  projectId: String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '').trim(),
+  messagingSenderId: String(
+  import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? ''
+  ).trim(),
+  appId: String(import.meta.env.VITE_FIREBASE_APP_ID ?? '').trim(),
   }
-}
+  }
 
 /**
- * Kiểm tra Firebase đã được cấu hình đầy đủ hay chưa.
- */
-export function isFirebaseConfigured() {
-  const {
-    apiKey,
-    authDomain,
-    projectId,
-    messagingSenderId,
-    appId,
-  } = readConfig()
 
-  return Boolean(
-    apiKey &&
-    authDomain &&
-    projectId &&
-    messagingSenderId &&
-    appId
-  )
+* Kiểm tra Firebase đã được cấu hình đầy đủ hay chưa.
+  */
+  export function isFirebaseConfigured() {
+  const config = readConfig()
+
+console.log('🔥 Firebase ENV CHECK:', {
+apiKey: Boolean(config.apiKey),
+authDomain: Boolean(config.authDomain),
+projectId: Boolean(config.projectId),
+messagingSenderId: Boolean(config.messagingSenderId),
+appId: Boolean(config.appId),
+})
+
+return Boolean(
+config.apiKey &&
+config.authDomain &&
+config.projectId &&
+config.messagingSenderId &&
+config.appId
+)
 }
 
 let appInstance = null
 
 /**
- * Lấy Firebase App dùng chung cho toàn bộ ứng dụng.
- */
-function getFirebaseApp() {
+
+* Lấy Firebase App dùng chung cho toàn bộ ứng dụng.
+  */
+  function getFirebaseApp() {
   if (!isFirebaseConfigured()) {
-    return null
+  return null
   }
 
-  if (!appInstance) {
-    const config = readConfig()
+if (!appInstance) {
+const config = readConfig()
 
-    appInstance =
-      getApps().length > 0
-        ? getApp()
-        : initializeApp(config)
-  }
+```
+appInstance =
+  getApps().length > 0
+    ? getApp()
+    : initializeApp(config)
+```
 
-  return appInstance
+}
+
+return appInstance
 }
 
 let dbInstance = null
 
 /**
- * Lấy Firestore instance.
- *
- * Trả về null nếu Firebase chưa được cấu hình.
- */
-export function getDb() {
+
+* Lấy Firestore instance.
+*
+* Trả về null nếu Firebase chưa được cấu hình.
+  */
+  export function getDb() {
   const app = getFirebaseApp()
 
-  if (!app) {
-    return null
-  }
+if (!app) {
+return null
+}
 
-  if (!dbInstance) {
-    dbInstance = getFirestore(app)
-  }
+if (!dbInstance) {
+dbInstance = getFirestore(app)
+}
 
-  return dbInstance
+return dbInstance
 }
 
 let authInstance = null
 
 /**
- * Lấy Firebase Authentication instance.
- *
- * Trả về null nếu Firebase chưa được cấu hình.
- */
-export function getFirebaseAuth() {
+
+* Lấy Firebase Authentication instance.
+*
+* Trả về null nếu Firebase chưa được cấu hình.
+  */
+  export function getFirebaseAuth() {
   const app = getFirebaseApp()
 
-  if (!app) {
-    return null
-  }
+if (!app) {
+return null
+}
 
-  if (!authInstance) {
-    authInstance = getAuth(app)
-  }
+if (!authInstance) {
+authInstance = getAuth(app)
+}
 
-  return authInstance
+return authInstance
 }
 
 /**
- * Backend hiện tại của ứng dụng.
- */
-export function getDataBackend() {
+
+* Backend hiện tại của ứng dụng.
+  */
+  export function getDataBackend() {
   return isFirebaseConfigured()
-    ? 'firestore'
-    : 'local'
-}
+  ? 'firestore'
+  : 'local'
+  }
