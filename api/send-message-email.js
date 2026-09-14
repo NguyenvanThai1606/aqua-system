@@ -23,6 +23,14 @@ function escapeHtml(value) {
   })[character])
 }
 
+function resendDiagnostic(error) {
+  return {
+    statusCode: error?.statusCode ?? null,
+    name: typeof error?.name === 'string' ? error.name : 'UnknownResendError',
+    message: typeof error?.message === 'string' ? error.message : 'Unknown Resend error',
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
@@ -108,11 +116,13 @@ export default async function handler(req, res) {
     )
 
     if (result.error) {
+      console.error('[send-message-email] Resend rejected email', resendDiagnostic(result.error))
       return json(res, 502, { error: 'Email provider rejected the request.' })
     }
 
     return json(res, 200, { ok: true, id: result.data?.id ?? null })
-  } catch {
+  } catch (error) {
+    console.error('[send-message-email] Resend request threw', resendDiagnostic(error))
     return json(res, 502, { error: 'Email delivery failed.' })
   }
 }
