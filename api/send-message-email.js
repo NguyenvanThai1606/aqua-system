@@ -24,10 +24,18 @@ function escapeHtml(value) {
 }
 
 function resendDiagnostic(error) {
+  const value = (candidate) => (typeof candidate === 'string' || typeof candidate === 'number'
+    ? candidate
+    : null)
+
   return {
-    statusCode: error?.statusCode ?? null,
-    name: typeof error?.name === 'string' ? error.name : 'UnknownResendError',
-    message: typeof error?.message === 'string' ? error.message : 'Unknown Resend error',
+    statusCode: value(error?.statusCode ?? error?.response?.status),
+    status: value(error?.status),
+    statusText: value(error?.statusText ?? error?.response?.statusText),
+    name: value(error?.name) ?? 'UnknownResendError',
+    type: value(error?.type ?? error?.error?.type),
+    code: value(error?.code ?? error?.error?.code),
+    message: value(error?.message) ?? 'Unknown Resend error',
   }
 }
 
