@@ -27,13 +27,31 @@ import * as eventService from '../services/eventService'
  *    xóa, `get()` đó sẽ thất bại.
  */
 export default function EventsProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { notify } = useNotifications()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+
+    if (authLoading) {
+      setEvents([])
+      setLoading(true)
+      return () => {
+        active = false
+      }
+    }
+
+    if (!user) {
+      setEvents([])
+      setLoading(false)
+      return () => {
+        active = false
+      }
+    }
+
+    setLoading(true)
 
     eventService
       .listEvents()
@@ -51,7 +69,7 @@ export default function EventsProvider({ children }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [authLoading, user])
 
   const notifyParticipants = useCallback(
     (event, participants, { type, title }) => {

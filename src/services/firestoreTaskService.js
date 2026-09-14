@@ -28,9 +28,12 @@ function normalize(input) {
   return {
     title: input.title?.trim() ?? '',
     description: input.description?.trim() ?? '',
+    notes: input.notes?.trim() ?? '',
     status: input.status || DEFAULT_STATUS,
     priority: input.priority || DEFAULT_PRIORITY,
     assignee: input.assignee ?? null,
+    supervisor: input.supervisor ?? null,
+    projectId: input.projectId || null,
     deadline: input.deadline || null,
     checklist: (input.checklist ?? []).map((item) => ({
       id: item.id ?? newId('c'),
@@ -45,6 +48,9 @@ function fromFirestore(snapshot) {
   return {
     id: snapshot.id,
     ...data,
+    notes: data.notes ?? '',
+    supervisor: data.supervisor ?? null,
+    projectId: data.projectId ?? null,
     createdAt: timestampToIso(data.createdAt),
   }
 }

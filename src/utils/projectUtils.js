@@ -7,9 +7,22 @@
  */
 
 import { isClosedStatus } from '../data/projectMeta'
+import { DONE_STATUS } from '../data/taskMeta'
 import { parseDeadline, startOfToday } from './taskUtils'
 
 export { parseDeadline, isValidDeadline } from './taskUtils'
+
+/** Tính tiến độ công việc từ các task thuộc đúng project. */
+export function calculateProjectProgress(tasks, projectId) {
+  const projectTasks = tasks.filter((task) => task.projectId === projectId)
+  const completed = projectTasks.filter((task) => task.status === DONE_STATUS).length
+
+  return {
+    total: projectTasks.length,
+    completed,
+    percent: projectTasks.length === 0 ? 0 : Math.round((completed / projectTasks.length) * 100),
+  }
+}
 
 /** Dự án đã đóng (hoàn thành/hủy) thì không tính quá hạn. */
 export function isProjectOverdue(project) {

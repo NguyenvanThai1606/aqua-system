@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DEFAULT_EMPLOYMENT_STATUS } from '../data/employeeMeta'
+import { getUserDepartmentIds } from '../services/userService'
 
 const INITIAL_FILTERS = { keyword: '', departmentId: 'all', status: 'all' }
 
@@ -25,11 +26,13 @@ export default function usePersonnelFilters(profiles) {
     return profiles.filter((profile) => {
       if (!matchesKeyword(profile, filters.keyword)) return false
 
-      if (filters.departmentId === 'none' && profile.departmentId) return false
+      const departmentIds = getUserDepartmentIds(profile)
+
+      if (filters.departmentId === 'none' && departmentIds.length > 0) return false
       if (
         filters.departmentId !== 'all' &&
         filters.departmentId !== 'none' &&
-        profile.departmentId !== filters.departmentId
+        !departmentIds.includes(filters.departmentId)
       ) {
         return false
       }

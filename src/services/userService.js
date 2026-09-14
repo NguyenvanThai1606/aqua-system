@@ -15,6 +15,7 @@
 
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -40,17 +41,15 @@ export const DEFAULT_ROLE = 'user'
  * đúng các field này — enforced ở `firestore.rules`, tách biệt hoàn toàn
  * với field hồ sơ cá nhân (`displayName`/`photoURL`, Phase 8-9) mà user tự
  * sửa ở `/profile`, và với `role` (chỉ đổi được qua `updateUserRole()`).
- *  - `departmentId`: trỏ tới `departments/{departmentId}` (Phase 10) —
- *    `null` nghĩa là chưa phân bổ phòng ban.
- *  - `departmentName`: tên phòng ban denormalize tại thời điểm gán, cùng
- *    kiểu dữ liệu với `Project.manager`/`Task.assignee` (xem `toPersonRef`)
- *    — tránh phải join thêm một lần đọc `departments` khi hiển thị danh
- *    sách nhân sự.
+ *  - `departmentIds`: danh sách trỏ tới `departments/{departmentId}` (Phase 3).
+ *  - `departmentId`/`departmentName`: field legacy, đồng bộ với phần tử đầu
+ *    tiên để các client cũ vẫn hoạt động.
  */
 export const PERSONNEL_EDITABLE_FIELDS = [
   'position',
   'departmentId',
   'departmentName',
+  'departmentIds',
   'employmentStatus',
   'phone',
 ]
@@ -62,6 +61,38 @@ function getDbOrThrow() {
   const db = getDb()
   if (!db) throw new Error('Firestore chưa được cấu hình.')
   return db
+}
+
+/** Lấy membership phòng ban, fallback an toàn cho profile schema cũ. */
+export function getUserDepartmentIds(profile) {
+  if (Array.isArray(profile?.departmentIds)) {
+    return normalizeDepartmentIds(profile.departmentIds)
+  }
+
+  return normalizeDepartmentIds(profile?.departmentId ? [profile.departmentId] : [])
+}
+
+export function normalizeDepartmentIds(departmentIds) {
+  return [...new Set(
+    (Array.isArray(departmentIds) ? departmentIds : [])
+      .filter((id) => typeof id === 'string' && id),
+  )]
+}
+
+export function getDepartmentMembershipPatch(departmentIds, departments = [], fallbackName = null) {
+  const normalizedIds = normalizeDepartmentIds(departmentIds)
+  const firstId = normalizedIds[0] ?? null
+  const firstDepartment = departments.find((department) => department.id === firstId)
+
+  return {
+    departmentIds: normalizedIds,
+    departmentId: firstId,
+    departmentName: firstDepartment?.name ?? fallbackName ?? null,
+  }
+}
+
+function normalizeUserProfile(profile) {
+  return { ...profile, departmentIds: getUserDepartmentIds(profile) }
 }
 
 /** Tên hiển thị: ưu tiên displayName Firebase, fallback phần trước "@" của email. */
@@ -147,6 +178,7 @@ export async function ensureUserProfile(firebaseUser) {
         displayName: nextDisplayName,
         photoURL: nextPhotoURL,
         role: DEFAULT_ROLE,
+        departmentIds: [],
         createdAt: now,
         updatedAt: now,
       }
@@ -166,7 +198,7 @@ export async function ensureUserProfile(firebaseUser) {
       await updateDoc(ref, patch)
     }
 
-    return { id: firebaseUser.uid, ...current, ...patch }
+    return normalizeUserProfile({ id: firebaseUser.uid, ...current, ...patch })
   } catch (error) {
     throw wrapFirestoreError(error, 'ensureUserProfile')
   }
@@ -226,6 +258,12 @@ export async function updatePersonnelProfile(uid, patch = {}) {
   if (patch.position !== undefined) payload.position = patch.position?.trim() || null
   if (patch.departmentId !== undefined) payload.departmentId = patch.departmentId || null
   if (patch.departmentName !== undefined) payload.departmentName = patch.departmentName?.trim() || null
+  if (patch.departmentIds !== undefined) {
+    Object.assign(
+      payload,
+      getDepartmentMembershipPatch(patch.departmentIds, [], patch.departmentName?.trim() || null),
+    )
+  }
   if (patch.employmentStatus !== undefined) payload.employmentStatus = patch.employmentStatus || null
   if (patch.phone !== undefined) payload.phone = patch.phone?.trim() || null
 
@@ -255,7 +293,11 @@ export function subscribeUserProfile(uid, callback) {
 
   return onSnapshot(
     ref,
-    (snapshot) => callback(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null),
+    (snapshot) => callback(
+      snapshot.exists()
+        ? normalizeUserProfile({ id: snapshot.id, ...snapshot.data() })
+        : null,
+    ),
     (error) => {
       console.error('[userService] subscribeUserProfile lỗi:', error)
       callback(null)
@@ -275,7 +317,7 @@ export async function listUserProfiles() {
   try {
     const snapshot = await getDocs(collection(db, COLLECTION))
     return snapshot.docs
-      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .map((docSnap) => normalizeUserProfile({ id: docSnap.id, ...docSnap.data() }))
       .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? ''))
   } catch (error) {
     throw wrapFirestoreError(error, 'listUserProfiles')
@@ -299,5 +341,25 @@ export async function updateUserRole(uid, role) {
     return { id: uid, role }
   } catch (error) {
     throw wrapFirestoreError(error, 'updateUserRole')
+  }
+}
+
+/**
+ * Xóa hồ sơ Firestore của user khác — quyền admin được enforce bởi Rules.
+ * Firebase Auth user không bị xóa ở client; thao tác đó cần backend Admin SDK.
+ */
+export async function deleteUserProfile(uid) {
+  if (!uid) throw new Error('Thiếu mã người dùng cần xóa.')
+
+  const db = getDbOrThrow()
+
+  try {
+    const snapshot = await getDoc(doc(db, COLLECTION, uid))
+    if (!snapshot.exists()) throw new Error(`Không tìm thấy hồ sơ người dùng ${uid}`)
+    await deleteDoc(doc(db, COLLECTION, uid))
+    return uid
+  } catch (error) {
+    if (error.message?.startsWith('Không tìm thấy hồ sơ')) throw error
+    throw wrapFirestoreError(error, 'deleteUserProfile')
   }
 }

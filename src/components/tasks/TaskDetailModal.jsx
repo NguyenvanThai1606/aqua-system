@@ -10,6 +10,7 @@ import {
 } from '../../utils/taskUtils'
 import useUserProfiles from '../../utils/useUserProfiles'
 import { isLegacyPerson, toPersonRef } from '../../services/userService'
+import { useProjects } from '../../utils/projectsContext'
 
 /** Mô tả trạng thái deadline bằng lời — rõ hơn là chỉ hiện ngày. */
 function deadlineHint(task) {
@@ -36,6 +37,7 @@ export default function TaskDetailModal({
   canReassign = false,
 }) {
   const { profiles: users, loading: usersLoading } = useUserProfiles(open && canReassign)
+  const { projects, loading: projectsLoading } = useProjects()
 
   if (!task) return null
 
@@ -46,6 +48,16 @@ export default function TaskDetailModal({
   const handleAssigneeChange = (assigneeId) => {
     onPatch({ assignee: assigneeId ? toPersonRef(users.find((p) => p.id === assigneeId)) : null })
   }
+
+  const handleSupervisorChange = (supervisorId) => {
+    onPatch({ supervisor: supervisorId ? toPersonRef(users.find((p) => p.id === supervisorId)) : null })
+  }
+
+  const handleProjectChange = (projectId) => {
+    onPatch({ projectId: projectId || null })
+  }
+
+  const project = projects.find((item) => item.id === task.projectId)
 
   return (
     <Modal
@@ -87,9 +99,16 @@ export default function TaskDetailModal({
           </p>
         </section>
 
+        <section className="task-detail-section">
+          <h3 className="task-detail-label">Ghi chú</h3>
+          <p className="task-detail-text">
+            {task.notes || <span className="muted">Chưa có ghi chú.</span>}
+          </p>
+        </section>
+
         <dl className="task-detail-meta">
           <div className="task-detail-meta-item">
-            <dt>Người phụ trách</dt>
+            <dt>Người thực hiện</dt>
             <dd>
               {task.assignee ? (
                 <span className="task-detail-person">
@@ -106,6 +125,31 @@ export default function TaskDetailModal({
                 <span className="muted">Chưa phân công</span>
               )}
             </dd>
+          </div>
+
+          <div className="task-detail-meta-item">
+            <dt>Người giám sát</dt>
+            <dd>
+              {task.supervisor ? (
+                <span className="task-detail-person">
+                  <Avatar
+                    name={task.supervisor.name}
+                    initials={task.supervisor.initials}
+                    photoURL={task.supervisor.photoURL}
+                    size="sm"
+                  />
+                  {task.supervisor.name}
+                  {isLegacyPerson(task.supervisor) && <span className="muted"> (dữ liệu cũ)</span>}
+                </span>
+              ) : (
+                <span className="muted">Chưa có người giám sát</span>
+              )}
+            </dd>
+          </div>
+
+          <div className="task-detail-meta-item">
+            <dt>Dự án</dt>
+            <dd>{project?.name ?? 'Không thuộc dự án'}</dd>
           </div>
 
           <div className="task-detail-meta-item">
@@ -176,6 +220,51 @@ export default function TaskDetailModal({
                 disabled={usersLoading}
               >
                 <option value="">Chưa phân công</option>
+                {users.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.displayName || profile.email}
+                    {profile.email ? ` (${profile.email})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {canReassign && (
+            <div className="field">
+              <label className="field-label" htmlFor="detail-task-project">
+                Dự án
+              </label>
+              <select
+                id="detail-task-project"
+                className="select"
+                value={task.projectId ?? ''}
+                onChange={(event) => handleProjectChange(event.target.value)}
+                disabled={projectsLoading}
+              >
+                <option value="">Không thuộc dự án</option>
+                {projects.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {canReassign && (
+            <div className="field">
+              <label className="field-label" htmlFor="detail-task-supervisor">
+                Người giám sát
+              </label>
+              <select
+                id="detail-task-supervisor"
+                className="select"
+                value={isLegacyPerson(task.supervisor) ? '' : (task.supervisor?.id ?? '')}
+                onChange={(event) => handleSupervisorChange(event.target.value)}
+                disabled={usersLoading}
+              >
+                <option value="">Chưa có người giám sát</option>
                 {users.map((profile) => (
                   <option key={profile.id} value={profile.id}>
                     {profile.displayName || profile.email}

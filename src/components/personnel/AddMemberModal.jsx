@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
+import { getUserDepartmentIds } from '../../services/userService'
 
 function displayNameOf(profile) {
   return profile.displayName?.trim() || profile.email?.split('@')[0] || 'Người dùng'
@@ -12,11 +13,8 @@ function displayNameOf(profile) {
  * `PersonnelDetailModal` ở tab Danh sách nhân sự, khiến admin không thấy
  * đường nào "thêm nhân sự" ngay tại Cơ cấu tổ chức).
  *
- * Chỉ liệt kê user CHƯA thuộc phòng ban này (đã ở phòng ban khác thì
- * chọn ở đây sẽ CHUYỂN người đó sang phòng ban hiện tại — không tạo quan
- * hệ nhiều-phòng-ban vì `User.departmentId` vẫn là field đơn, giữ đúng
- * schema hiện tại). Ghi qua `updatePersonnelProfile()` — cùng hàm/Rules
- * đã có sẵn ở Phase 10, không thêm field hay nhánh Rules mới.
+ * Chỉ liệt kê user chưa thuộc phòng ban này. Thêm một phòng ban mới không
+ * gỡ các membership hiện có; ghi qua `updatePersonnelProfile()`.
  */
 export default function AddMemberModal({ open, onClose, department, profiles, onAdd }) {
   const [query, setQuery] = useState('')
@@ -32,7 +30,7 @@ export default function AddMemberModal({ open, onClose, department, profiles, on
     if (!department) return []
     const term = query.trim().toLowerCase()
     return profiles
-      .filter((profile) => profile.departmentId !== department.id)
+      .filter((profile) => !getUserDepartmentIds(profile).includes(department.id))
       .filter((profile) => {
         if (!term) return true
         const name = displayNameOf(profile).toLowerCase()

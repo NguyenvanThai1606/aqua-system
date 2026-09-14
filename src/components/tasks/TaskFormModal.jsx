@@ -10,11 +10,15 @@ import {
 import { isValidDeadline, parseDeadline } from '../../utils/taskUtils'
 import useUserProfiles from '../../utils/useUserProfiles'
 import { toPersonRef } from '../../services/userService'
+import { useProjects } from '../../utils/projectsContext'
 
 const EMPTY_FORM = {
   title: '',
   description: '',
+  notes: '',
   assigneeId: '',
+  supervisorId: '',
+  projectId: '',
   deadline: '',
   priority: DEFAULT_PRIORITY,
   status: DEFAULT_STATUS,
@@ -30,6 +34,7 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const { profiles: users, loading: usersLoading } = useUserProfiles(open)
+  const { projects, loading: projectsLoading } = useProjects()
 
   // Mở lại form là làm mới toàn bộ, không giữ dữ liệu lần trước.
   useEffect(() => {
@@ -84,11 +89,16 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
       await onSubmit({
         title: form.title,
         description: form.description,
+        notes: form.notes,
         status: form.status,
         priority: form.priority,
         assignee: form.assigneeId
           ? toPersonRef(users.find((profile) => profile.id === form.assigneeId))
           : null,
+        supervisor: form.supervisorId
+          ? toPersonRef(users.find((profile) => profile.id === form.supervisorId))
+          : null,
+        projectId: form.projectId || null,
         deadline: form.deadline,
         checklist,
       })
@@ -144,10 +154,23 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
           />
         </div>
 
+        <div className="field">
+          <label className="field-label" htmlFor="form-notes">
+            Ghi chú
+          </label>
+          <textarea
+            id="form-notes"
+            className="textarea"
+            value={form.notes}
+            onChange={(event) => setField('notes', event.target.value)}
+            placeholder="Ghi chú nội bộ cho công việc…"
+          />
+        </div>
+
         <div className="task-form-grid">
           <div className="field">
             <label className="field-label" htmlFor="form-assignee">
-              Người phụ trách
+              Người thực hiện
             </label>
             <select
               id="form-assignee"
@@ -157,6 +180,27 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
               disabled={usersLoading}
             >
               <option value="">Chưa phân công</option>
+              {users.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.displayName || profile.email}
+                  {profile.email ? ` (${profile.email})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="form-supervisor">
+              Người giám sát
+            </label>
+            <select
+              id="form-supervisor"
+              className="select"
+              value={form.supervisorId}
+              onChange={(event) => setField('supervisorId', event.target.value)}
+              disabled={usersLoading}
+            >
+              <option value="">Chưa có người giám sát</option>
               {users.map((profile) => (
                 <option key={profile.id} value={profile.id}>
                   {profile.displayName || profile.email}
@@ -179,6 +223,26 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
               aria-invalid={Boolean(errors.deadline)}
             />
             {errors.deadline && <p className="task-form-error">{errors.deadline}</p>}
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="form-project">
+              Dự án
+            </label>
+            <select
+              id="form-project"
+              className="select"
+              value={form.projectId}
+              onChange={(event) => setField('projectId', event.target.value)}
+              disabled={projectsLoading}
+            >
+              <option value="">Không thuộc dự án</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="field">

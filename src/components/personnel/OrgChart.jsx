@@ -1,12 +1,13 @@
 import Avatar from '../Avatar'
 import Icon from '../Icon'
 import { getEmploymentStatusMeta } from '../../data/employeeMeta'
+import { getUserDepartmentIds } from '../../services/userService'
 
 function displayNameOf(profile) {
   return profile.displayName?.trim() || profile.email?.split('@')[0] || 'Người dùng'
 }
 
-function EmployeeRow({ profile, canManage = false, onRemove }) {
+function EmployeeRow({ profile, department, canManage = false, onRemove }) {
   const status = getEmploymentStatusMeta(profile.employmentStatus)
 
   return (
@@ -24,7 +25,7 @@ function EmployeeRow({ profile, canManage = false, onRemove }) {
         <button
           type="button"
           className="icon-btn"
-          onClick={() => onRemove(profile)}
+          onClick={() => onRemove(profile, department)}
           aria-label={`Gỡ ${displayNameOf(profile)} khỏi phòng ban`}
           title="Gỡ khỏi phòng ban"
         >
@@ -37,9 +38,7 @@ function EmployeeRow({ profile, canManage = false, onRemove }) {
 
 /**
  * Cơ cấu tổ chức: nhân viên được nhóm theo phòng ban, mỗi phòng ban một
- * Card. Nhân viên chưa có `departmentId` (hoặc trỏ tới phòng ban đã bị
- * xóa) rơi vào nhóm "Chưa phân bổ" ở cuối — không mất dữ liệu, chỉ chờ
- * admin gán lại.
+ * Card. Nhân viên không có membership hợp lệ rơi vào nhóm "Chưa phân bổ".
  */
 export default function OrgChart({
   profiles,
@@ -53,7 +52,7 @@ export default function OrgChart({
 }) {
   const departmentIds = new Set(departments.map((department) => department.id))
   const unassigned = profiles.filter(
-    (profile) => !profile.departmentId || !departmentIds.has(profile.departmentId),
+    (profile) => !getUserDepartmentIds(profile).some((id) => departmentIds.has(id)),
   )
 
   return (
@@ -72,7 +71,9 @@ export default function OrgChart({
       ) : (
         <div className="personnel-org-grid">
           {departments.map((department) => {
-            const employees = profiles.filter((profile) => profile.departmentId === department.id)
+            const employees = profiles.filter((profile) =>
+              getUserDepartmentIds(profile).includes(department.id),
+            )
 
             return (
               <section key={department.id} className="personnel-org-card">
@@ -123,6 +124,7 @@ export default function OrgChart({
                       <EmployeeRow
                         key={profile.id}
                         profile={profile}
+                        department={department}
                         canManage={canManage}
                         onRemove={onRemoveMember}
                       />

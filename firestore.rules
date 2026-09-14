@@ -162,6 +162,9 @@ service cloud.firestore {
           (!data.keys().hasAny(['departmentId'])
             || data.departmentId == null
             || (data.departmentId is string && data.departmentId.size() <= 128)) &&
+          (!data.keys().hasAny(['departmentIds'])
+            || (data.departmentIds is list
+              && data.departmentIds.size() <= 100)) &&
           (!data.keys().hasAny(['departmentName'])
             || data.departmentName == null
             || (data.departmentName is string && data.departmentName.size() <= 80)) &&
@@ -266,13 +269,25 @@ service cloud.firestore {
         (
           isAdmin() &&
           request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['position', 'departmentId', 'departmentName', 'employmentStatus', 'phone', 'updatedAt']) &&
+            .hasOnly(['position', 'departmentId', 'departmentName', 'departmentIds', 'employmentStatus', 'phone', 'updatedAt']) &&
           request.resource.data.role == resource.data.role &&
           request.resource.data.email == resource.data.email &&
           request.resource.data.createdAt == resource.data.createdAt &&
           request.resource.data.displayName == resource.data.displayName &&
           request.resource.data.photoURL == resource.data.photoURL &&
-          isValidPersonnelPatch(request.resource.data)
+          isValidPersonnelPatch(request.resource.data) &&
+          (
+            !request.resource.data.keys().hasAny(['departmentIds']) ||
+            (
+              request.resource.data.departmentIds.size() == 0 &&
+              request.resource.data.departmentId == null &&
+              request.resource.data.departmentName == null
+            ) ||
+            (
+              request.resource.data.departmentIds.size() > 0 &&
+              request.resource.data.departmentId == request.resource.data.departmentIds[0]
+            )
+          )
         )
       );
 
@@ -364,6 +379,27 @@ service cloud.firestore {
         request.resource.data.description == resource.data.description &&
         request.resource.data.assignee == resource.data.assignee &&
         request.resource.data.deadline == resource.data.deadline &&
+        (
+          (!resource.data.keys().hasAny(['notes']) &&
+            (!request.resource.data.keys().hasAny(['notes']) || request.resource.data.notes == '')) ||
+          (resource.data.keys().hasAny(['notes']) &&
+            request.resource.data.keys().hasAny(['notes']) &&
+            request.resource.data.notes == resource.data.notes)
+        ) &&
+        (
+          (!resource.data.keys().hasAny(['supervisor']) &&
+            (!request.resource.data.keys().hasAny(['supervisor']) || request.resource.data.supervisor == null)) ||
+          (resource.data.keys().hasAny(['supervisor']) &&
+            request.resource.data.keys().hasAny(['supervisor']) &&
+            request.resource.data.supervisor == resource.data.supervisor)
+        ) &&
+        (
+          (!resource.data.keys().hasAny(['projectId']) &&
+            (!request.resource.data.keys().hasAny(['projectId']) || request.resource.data.projectId == null)) ||
+          (resource.data.keys().hasAny(['projectId']) &&
+            request.resource.data.keys().hasAny(['projectId']) &&
+            request.resource.data.projectId == resource.data.projectId)
+        ) &&
         request.resource.data.createdAt == resource.data.createdAt
       );
     }

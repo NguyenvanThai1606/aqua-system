@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
 import { EMPLOYMENT_STATUSES, getEmploymentStatusMeta } from '../../data/employeeMeta'
+import {
+  getDepartmentMembershipPatch,
+  getUserDepartmentIds,
+} from '../../services/userService'
 
 const ROLE_LABEL = {
   admin: 'Quản trị viên',
@@ -31,15 +35,16 @@ export default function PersonnelDetailModal({
   departmentsLoading,
   positions = [],
   onSave,
+  onRequestDelete,
 }) {
-  const [form, setForm] = useState({ position: '', departmentId: '', employmentStatus: '', phone: '' })
+  const [form, setForm] = useState({ position: '', departmentIds: [], employmentStatus: '', phone: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open || !profile) return
     setForm({
       position: profile.position ?? '',
-      departmentId: profile.departmentId ?? '',
+      departmentIds: getUserDepartmentIds(profile),
       employmentStatus: profile.employmentStatus || 'active',
       phone: profile.phone ?? '',
     })
@@ -55,14 +60,11 @@ export default function PersonnelDetailModal({
     event.preventDefault()
     if (saving) return
 
-    const department = departments.find((item) => item.id === form.departmentId) ?? null
-
     setSaving(true)
     try {
       await onSave({
         position: form.position,
-        departmentId: department?.id ?? null,
-        departmentName: department?.name ?? null,
+        ...getDepartmentMembershipPatch(form.departmentIds, departments),
         employmentStatus: form.employmentStatus,
         phone: form.phone,
       })
@@ -81,6 +83,16 @@ export default function PersonnelDetailModal({
       footer={
         canEdit ? (
           <>
+            {onRequestDelete && (
+              <button
+                type="button"
+                className="btn btn-danger-ghost"
+                onClick={onRequestDelete}
+                disabled={saving}
+              >
+                Xóa hồ sơ
+              </button>
+            )}
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>
               Đóng
             </button>
@@ -117,7 +129,13 @@ export default function PersonnelDetailModal({
             </div>
             <div className="personnel-detail-meta-item">
               <dt>Phòng ban</dt>
-              <dd>{profile.departmentName || <span className="muted">Chưa phân bổ</span>}</dd>
+              <dd>
+                {getUserDepartmentIds(profile).length > 0
+                  ? getUserDepartmentIds(profile)
+                      .map((id) => departments.find((item) => item.id === id)?.name ?? id)
+                      .join(', ')
+                  : <span className="muted">Chưa phân bổ</span>}
+              </dd>
             </div>
             <div className="personnel-detail-meta-item">
               <dt>Trạng thái làm việc</dt>
@@ -170,25 +188,37 @@ export default function PersonnelDetailModal({
             </div>
 
             <div className="field">
-              <label className="field-label" htmlFor="personnel-detail-department">
-                Phòng ban
-              </label>
-              <select
-                id="personnel-detail-department"
-                className="select"
-                value={form.departmentId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, departmentId: event.target.value }))
-                }
-                disabled={saving || departmentsLoading}
-              >
-                <option value="">Chưa phân bổ</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </select>
+              <span className="field-label">Phòng ban</span>
+              <div className="personnel-department-checkboxes" aria-label="Chọn phòng ban">
+                {departmentsLoading ? (
+                  <p className="muted">Đang tải danh sách phòng ban…</p>
+                ) : departments.length === 0 ? (
+                  <p className="muted">Chưa có phòng ban.</p>
+                ) : (
+                  departments.map((department) => {
+                    const checked = form.departmentIds.includes(department.id)
+                    return (
+                      <label key={department.id} className="personnel-department-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setForm((current) => ({
+                              ...current,
+                              departmentIds: checked
+                                ? current.departmentIds.filter((id) => id !== department.id)
+                                : [...current.departmentIds, department.id],
+                            }))
+                          }
+                          disabled={saving}
+                        />
+                        <span>{department.name}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+              <p className="muted">Có thể chọn nhiều phòng ban.</p>
             </div>
 
             <div className="field">

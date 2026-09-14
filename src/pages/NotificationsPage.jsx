@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Icon from '../components/Icon'
 import { useNotifications } from '../utils/notificationsContext'
+import { useToast } from '../utils/toastContext'
 import {
   formatRelativeTime,
   getNotificationIcon,
@@ -16,11 +17,14 @@ export default function NotificationsPage() {
   const { notifications, loading, error, unreadCount, markRead, markAllRead, removeNotification } =
     useNotifications()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const handleOpen = (notification) => {
     if (!notification.read) {
       markRead(notification.id).catch((err) =>
-        console.error('[NotificationsPage] Không đánh dấu đã đọc được:', err),
+        toast.error('Không thể đánh dấu thông báo đã đọc', {
+          message: err instanceof Error ? err.message : 'Vui lòng thử lại.',
+        }),
       )
     }
 
@@ -30,11 +34,19 @@ export default function NotificationsPage() {
 
   const handleDelete = (event, id) => {
     event.stopPropagation()
-    removeNotification(id).catch((err) => console.error('[NotificationsPage] Không xóa được thông báo:', err))
+    removeNotification(id).catch((err) =>
+      toast.error('Không thể xóa thông báo', {
+        message: err instanceof Error ? err.message : 'Vui lòng thử lại.',
+      }),
+    )
   }
 
   const handleMarkAllRead = () => {
-    markAllRead().catch((err) => console.error('[NotificationsPage] Không đánh dấu tất cả đã đọc được:', err))
+    markAllRead().catch((err) =>
+      toast.error('Không thể đánh dấu tất cả đã đọc', {
+        message: err instanceof Error ? err.message : 'Vui lòng thử lại.',
+      }),
+    )
   }
 
   return (

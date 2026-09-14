@@ -25,9 +25,12 @@ function normalize(input) {
   return {
     title: input.title?.trim() ?? '',
     description: input.description?.trim() ?? '',
+    notes: input.notes?.trim() ?? '',
     status: input.status || DEFAULT_STATUS,
     priority: input.priority || DEFAULT_PRIORITY,
     assignee: input.assignee ?? null,
+    supervisor: input.supervisor ?? null,
+    projectId: input.projectId || null,
     deadline: input.deadline || null,
     checklist: (input.checklist ?? []).map((item) => ({
       id: item.id ?? newId('c'),
@@ -38,7 +41,14 @@ function normalize(input) {
 }
 
 export async function listTasks() {
-  return store.map((task) => structuredClone(task))
+  return store.map((task) =>
+    structuredClone({
+      ...task,
+      notes: task.notes ?? '',
+      supervisor: task.supervisor ?? null,
+      projectId: task.projectId ?? null,
+    }),
+  )
 }
 
 export async function createTask(input) {
@@ -57,7 +67,17 @@ export async function updateTask(id, patch) {
   const current = store.find((task) => task.id === id)
   if (!current) throw new Error(`Không tìm thấy công việc ${id}`)
 
-  const updated = { ...current, ...patch }
+  const updated = {
+    ...current,
+    ...patch,
+    notes: patch.notes ?? current.notes ?? '',
+    supervisor: Object.prototype.hasOwnProperty.call(patch, 'supervisor')
+      ? patch.supervisor
+      : (current.supervisor ?? null),
+    projectId: Object.prototype.hasOwnProperty.call(patch, 'projectId')
+      ? patch.projectId
+      : (current.projectId ?? null),
+  }
   store = store.map((task) => (task.id === id ? updated : task))
   persist()
   return structuredClone(updated)

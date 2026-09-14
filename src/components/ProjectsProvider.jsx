@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ProjectsContext } from '../utils/projectsContext'
-import { countOverdueProjects } from '../utils/projectUtils'
+import { calculateProjectProgress, countOverdueProjects } from '../utils/projectUtils'
+import { useTasks } from '../utils/tasksContext'
 import { useAuth } from '../utils/authContext'
 import { useNotifications } from '../utils/notificationsContext'
 import * as projectService from '../services/projectService'
@@ -17,13 +18,32 @@ import * as projectService from '../services/projectService'
  * (`project_manager_assigned`) — KHÔNG tự nghĩ thêm loại thành viên khác.
  */
 export default function ProjectsProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  const { tasks } = useTasks()
   const { notify } = useNotifications()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+
+    if (authLoading) {
+      setProjects([])
+      setLoading(true)
+      return () => {
+        active = false
+      }
+    }
+
+    if (!user) {
+      setProjects([])
+      setLoading(false)
+      return () => {
+        active = false
+      }
+    }
+
+    setLoading(true)
 
     projectService
       .listProjects()
@@ -41,7 +61,7 @@ export default function ProjectsProvider({ children }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [authLoading, user])
 
   const notifyManagerAssigned = useCallback(
     (project) => {
@@ -91,17 +111,25 @@ export default function ProjectsProvider({ children }) {
   }, [])
 
   const overdueCount = useMemo(() => countOverdueProjects(projects), [projects])
+  const projectsWithProgress = useMemo(
+    () =>
+      projects.map((project) => ({
+        ...project,
+        taskProgress: calculateProjectProgress(tasks, project.id),
+      })),
+    [projects, tasks],
+  )
 
   const value = useMemo(
     () => ({
-      projects,
+      projects: projectsWithProgress,
       loading,
       overdueCount,
       addProject,
       patchProject,
       removeProject,
     }),
-    [projects, loading, overdueCount, addProject, patchProject, removeProject],
+    [projectsWithProgress, loading, overdueCount, addProject, patchProject, removeProject],
   )
 
   return <ProjectsContext value={value}>{children}</ProjectsContext>

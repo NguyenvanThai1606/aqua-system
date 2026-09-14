@@ -60,6 +60,11 @@ function conversationFromSnapshot(snapshot) {
   return {
     id: snapshot.id,
     ...data,
+    participantIds: Array.isArray(data.participantIds) ? data.participantIds : [],
+    participants: Array.isArray(data.participants) ? data.participants : [],
+    unreadCounts: data.unreadCounts ?? {},
+    lastReadAt: data.lastReadAt ?? {},
+    lastMessage: data.lastMessage ?? null,
     createdAt: timestampToIso(data.createdAt),
     updatedAt: timestampToIso(data.updatedAt ?? data.createdAt),
   }
@@ -70,6 +75,9 @@ function messageFromSnapshot(snapshot) {
   return {
     id: snapshot.id,
     ...data,
+    senderId: data.senderId ?? null,
+    text: typeof data.text === 'string' ? data.text : '',
+    sendEmail: data.sendEmail === true,
     createdAt: timestampToIso(data.createdAt),
   }
 }
@@ -159,7 +167,7 @@ export async function getOrCreateDirectConversation(me, other) {
  * `lastMessage`/`lastMessageAt`/`unreadCounts` trên conversation cha, để
  * danh sách cuộc trò chuyện không bao giờ "lệch" khỏi tin nhắn thật.
  */
-export async function sendMessage({ conversationId, participantIds, senderId, text }) {
+export async function sendMessage({ conversationId, participantIds, senderId, text, sendEmail = false }) {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Nội dung tin nhắn không được để trống.')
 
@@ -174,6 +182,7 @@ export async function sendMessage({ conversationId, participantIds, senderId, te
     conversationId,
     senderId,
     text: trimmed,
+    sendEmail: sendEmail === true,
     createdAt: now,
   })
 
@@ -194,7 +203,14 @@ export async function sendMessage({ conversationId, participantIds, senderId, te
   batch.update(conversationRef, conversationUpdate)
 
   await batch.commit()
-  return { id: messageRef.id, conversationId, senderId, text: trimmed, createdAt: now }
+  return {
+    id: messageRef.id,
+    conversationId,
+    senderId,
+    text: trimmed,
+    sendEmail: sendEmail === true,
+    createdAt: now,
+  }
 }
 
 /** Đánh dấu đã đọc — CHỈ reset unread/lastReadAt của CHÍNH `uid`. */

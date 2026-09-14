@@ -114,7 +114,7 @@ export async function getOrCreateDirectConversation(me, other) {
   return structuredClone(conversation)
 }
 
-export async function sendMessage({ conversationId, participantIds, senderId, text }) {
+export async function sendMessage({ conversationId, participantIds, senderId, text, sendEmail = false }) {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Nội dung tin nhắn không được để trống.')
 
@@ -126,6 +126,7 @@ export async function sendMessage({ conversationId, participantIds, senderId, te
     conversationId,
     senderId,
     text: trimmed,
+    sendEmail: sendEmail === true,
     createdAt: now,
   }
 

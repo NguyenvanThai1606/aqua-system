@@ -49,6 +49,7 @@ export default function ProjectDetailModal({
   const overdue = isProjectOverdue(project)
   const hint = deadlineHint(project)
   const budget = getBudgetUsage(project)
+  const taskProgress = project.taskProgress ?? { total: 0, completed: 0, percent: 0 }
 
   const handleManagerChange = (managerId) => {
     onPatch({ manager: managerId ? toPersonRef(users.find((p) => p.id === managerId)) : null })
@@ -177,7 +178,23 @@ export default function ProjectDetailModal({
 
         <div className="project-detail-budget-bar">
           <div className="project-detail-budget-head">
-            <span>Tiến độ ngân sách</span>
+            <span>Tiến độ công việc</span>
+            <span>{taskProgress.percent}%</span>
+          </div>
+          <div className="project-progress-track" aria-hidden="true">
+            <span
+              className="project-progress-fill"
+              style={{ width: `${taskProgress.percent}%` }}
+            />
+          </div>
+          <p className="project-detail-hint">
+            {taskProgress.completed}/{taskProgress.total} task hoàn thành
+          </p>
+        </div>
+
+        <div className="project-detail-budget-bar">
+          <div className="project-detail-budget-head">
+            <span>Sử dụng ngân sách</span>
             <span className={cx(budget.over && 'project-budget-over')}>{budget.percent}%</span>
           </div>
           <div className="project-progress-track" aria-hidden="true">
@@ -206,21 +223,6 @@ export default function ProjectDetailModal({
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="field">
-              <label className="field-label" htmlFor="detail-project-progress">
-                Tiến độ (%)
-              </label>
-              <input
-                id="detail-project-progress"
-                type="number"
-                min="0"
-                max="100"
-                className="input"
-                value={project.progress}
-                onChange={(event) => onPatch({ progress: event.target.value })}
-              />
             </div>
 
             <div className="field">

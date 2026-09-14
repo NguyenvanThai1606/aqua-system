@@ -1,5 +1,11 @@
 import { WEEKDAY_LABELS_SHORT, getScopeMeta } from '../../data/calendarMeta'
-import { eventsForDate, getWeekDays, isToday, toISODate } from '../../utils/calendarUtils'
+import {
+  eventsForDate,
+  formatTimeRange,
+  getWeekDays,
+  isToday,
+  toISODate,
+} from '../../utils/calendarUtils'
 import cx from '../../utils/cx'
 
 export default function WeekView({ cursor, events, onSelectDay, onOpenEvent }) {
@@ -30,7 +36,7 @@ export default function WeekView({ cursor, events, onSelectDay, onOpenEvent }) {
                     onClick={() => onOpenEvent(event)}
                   >
                     <span className="calendar-event-card-time">
-                      {event.startTime} – {event.endTime}
+                      {formatTimeRange(event.startTime, event.endTime)}
                     </span>
                     <span className="calendar-event-card-title">{event.title}</span>
                     {event.location && (

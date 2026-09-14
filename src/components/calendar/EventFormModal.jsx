@@ -50,7 +50,14 @@ export default function EventFormModal({
         location: event.location ?? '',
         description: event.description ?? '',
         scope: event.scope ?? DEFAULT_SCOPE,
-        participantIds: (event.participants ?? []).map((person) => person.id),
+        participantIds: [
+          ...new Set(
+            (Array.isArray(event.participantIds)
+              ? event.participantIds
+              : (event.participants ?? []).map((person) => person.id)
+            ).filter(Boolean),
+          ),
+        ],
       })
     } else {
       setForm(emptyForm(defaultDate))

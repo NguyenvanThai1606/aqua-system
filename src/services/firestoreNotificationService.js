@@ -46,6 +46,14 @@ function fromSnapshot(snapshot) {
   return {
     id: snapshot.id,
     ...data,
+    userId: data.userId ?? null,
+    type: data.type ?? 'unknown',
+    title: data.title ?? 'Thông báo',
+    message: data.message ?? '',
+    read: data.read === true,
+    relatedType: data.relatedType ?? null,
+    relatedId: data.relatedId ?? null,
+    actorId: data.actorId ?? null,
     createdAt: timestampToIso(data.createdAt),
   }
 }

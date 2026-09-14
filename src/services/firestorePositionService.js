@@ -34,6 +34,7 @@ function fromFirestore(snapshot) {
   return {
     id: snapshot.id,
     ...data,
+    name: typeof data.name === 'string' ? data.name : '',
     createdAt: timestampToIso(data.createdAt),
   }
 }
@@ -61,11 +62,13 @@ export async function listPositions() {
 /** [Chỉ admin — enforced bởi Firestore Rules] Tạo chức vụ mới. */
 export async function createPosition(data) {
   const db = getDbOrThrow()
+  const name = data.name?.trim() ?? ''
+  if (!name) throw new Error('Tên chức vụ không được để trống.')
 
   const now = new Date().toISOString()
   const position = {
     id: newId(),
-    name: data.name?.trim() ?? '',
+    name,
     createdAt: now,
   }
 

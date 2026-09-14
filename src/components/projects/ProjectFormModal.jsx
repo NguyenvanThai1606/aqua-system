@@ -14,7 +14,6 @@ const EMPTY_FORM = {
   status: DEFAULT_PROJECT_STATUS,
   budget: '',
   spent: '0',
-  progress: '0',
   startDate: '',
   deadline: '',
 }
@@ -84,11 +83,6 @@ export default function ProjectFormModal({ open, onClose, onSubmit }) {
       next.spent = 'Chi phí đã dùng phải là số không âm.'
     }
 
-    const progress = Number(form.progress)
-    if (form.progress !== '' && (!Number.isFinite(progress) || progress < 0 || progress > 100)) {
-      next.progress = 'Tiến độ phải nằm trong khoảng 0–100.'
-    }
-
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -109,7 +103,6 @@ export default function ProjectFormModal({ open, onClose, onSubmit }) {
           : null,
         budget: form.budget === '' ? 0 : form.budget,
         spent: form.spent === '' ? 0 : form.spent,
-        progress: form.progress === '' ? 0 : form.progress,
         startDate: form.startDate,
         deadline: form.deadline,
       })
@@ -227,23 +220,6 @@ export default function ProjectFormModal({ open, onClose, onSubmit }) {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="field">
-            <label className="field-label" htmlFor="project-form-progress">
-              Tiến độ (%)
-            </label>
-            <input
-              id="project-form-progress"
-              type="number"
-              min="0"
-              max="100"
-              className="input"
-              value={form.progress}
-              onChange={(event) => setField('progress', event.target.value)}
-              aria-invalid={Boolean(errors.progress)}
-            />
-            {errors.progress && <p className="project-form-error">{errors.progress}</p>}
           </div>
 
           <div className="field">

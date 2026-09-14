@@ -13,7 +13,12 @@ import usePositions from '../utils/usePositions'
 import usePersonnelFilters from '../utils/usePersonnelFilters'
 import { useAuth } from '../utils/authContext'
 import { useToast } from '../utils/toastContext'
-import { updatePersonnelProfile } from '../services/userService'
+import {
+  deleteUserProfile,
+  getDepartmentMembershipPatch,
+  getUserDepartmentIds,
+  updatePersonnelProfile,
+} from '../services/userService'
 import {
   createDepartment,
   deleteDepartment,
@@ -47,7 +52,7 @@ function displayNameOf(profile) {
  * `firestore.rules`, trang này không phải lớp bảo vệ duy nhất.
  */
 export default function NhanSuPage() {
-  const { isAdmin } = useAuth()
+  const { user: currentUser, isAdmin } = useAuth()
   const toast = useToast()
 
   const [tab, setTab] = useState('list')
@@ -67,6 +72,8 @@ export default function NhanSuPage() {
   const [deletingDepartment, setDeletingDepartment] = useState(null)
   const [deletingBusy, setDeletingBusy] = useState(false)
   const [addMemberDepartment, setAddMemberDepartment] = useState(null)
+  const [deletingProfile, setDeletingProfile] = useState(null)
+  const [deletingProfileBusy, setDeletingProfileBusy] = useState(false)
 
   const handleSavePersonnel = async (patch) => {
     if (!selectedProfile) return
@@ -82,14 +89,33 @@ export default function NhanSuPage() {
     }
   }
 
-  // Phase 14 — gán/gỡ nhân sự trực tiếp từ card phòng ban (tab "Cơ cấu tổ
-  // chức"). Dùng lại đúng `updatePersonnelProfile()` + Rules Phase 10, chỉ
-  // đổi `departmentId`/`departmentName` — không field/nhánh Rules mới.
+  const handleDeleteProfile = async () => {
+    if (!deletingProfile || deletingProfileBusy) return
+
+    setDeletingProfileBusy(true)
+    try {
+      await deleteUserProfile(deletingProfile.id)
+      await reloadProfiles()
+      setSelectedProfileId(null)
+      setDeletingProfile(null)
+      toast.success('Đã xóa hồ sơ người dùng', { message: displayNameOf(deletingProfile) })
+    } catch (error) {
+      toast.error('Không thể xóa hồ sơ người dùng', {
+        message: error instanceof Error ? error.message : 'Vui lòng thử lại.',
+      })
+    } finally {
+      setDeletingProfileBusy(false)
+    }
+  }
+
+  // Gán/gỡ từng membership trực tiếp từ card phòng ban.
   const handleAddMember = async (profile, department) => {
     try {
+      const departmentIds = getUserDepartmentIds(profile)
+      if (departmentIds.includes(department.id)) return
+      const nextDepartmentIds = [...departmentIds, department.id]
       await updatePersonnelProfile(profile.id, {
-        departmentId: department.id,
-        departmentName: department.name,
+        ...getDepartmentMembershipPatch(nextDepartmentIds, departments),
       })
       await reloadProfiles()
       toast.success('Đã thêm nhân sự vào phòng ban', {
@@ -102,9 +128,12 @@ export default function NhanSuPage() {
     }
   }
 
-  const handleRemoveMember = async (profile) => {
+  const handleRemoveMember = async (profile, department) => {
     try {
-      await updatePersonnelProfile(profile.id, { departmentId: null, departmentName: null })
+      const departmentIds = getUserDepartmentIds(profile).filter((id) => id !== department.id)
+      await updatePersonnelProfile(profile.id, {
+        ...getDepartmentMembershipPatch(departmentIds, departments),
+      })
       await reloadProfiles()
       toast.success('Đã gỡ nhân sự khỏi phòng ban', { message: displayNameOf(profile) })
     } catch (error) {
@@ -239,6 +268,11 @@ export default function NhanSuPage() {
         departmentsLoading={departmentsLoading}
         positions={positions}
         onSave={handleSavePersonnel}
+        onRequestDelete={
+          isAdmin && selectedProfile?.id !== currentUser?.uid
+            ? () => setDeletingProfile(selectedProfile)
+            : undefined
+        }
       />
 
       {isAdmin && (
@@ -261,6 +295,20 @@ export default function NhanSuPage() {
             department={editingDepartment}
             profiles={profiles}
             profilesLoading={profilesLoading}
+          />
+
+          <ConfirmDialog
+            open={Boolean(deletingProfile)}
+            onClose={() => !deletingProfileBusy && setDeletingProfile(null)}
+            onConfirm={handleDeleteProfile}
+            busy={deletingProfileBusy}
+            title="Xóa hồ sơ người dùng?"
+            description={
+              deletingProfile
+                ? `Hồ sơ Firestore của “${displayNameOf(deletingProfile)}” sẽ bị xóa. Tài khoản Firebase Authentication và dữ liệu nghiệp vụ liên quan không bị xóa tự động.`
+                : undefined
+            }
+            confirmLabel="Xóa hồ sơ"
           />
 
           <ConfirmDialog

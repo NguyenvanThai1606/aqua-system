@@ -22,15 +22,18 @@ function newId() {
 
 export async function listPositions() {
   return store
-    .map((position) => structuredClone(position))
+    .map((position) => structuredClone({ ...position, name: typeof position.name === 'string' ? position.name : '' }))
     .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
 }
 
 export async function createPosition(data) {
+  const name = data.name?.trim() ?? ''
+  if (!name) throw new Error('Tên chức vụ không được để trống.')
+
   const now = new Date().toISOString()
   const position = {
     id: newId(),
-    name: data.name?.trim() ?? '',
+    name,
     createdAt: now,
   }
 

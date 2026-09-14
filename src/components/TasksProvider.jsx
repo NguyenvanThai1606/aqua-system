@@ -22,13 +22,31 @@ import * as taskService from '../services/taskService'
  * công rồi, thông báo chỉ là phụ trợ.
  */
 export default function TasksProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { notify } = useNotifications()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
+
+    if (authLoading) {
+      setTasks([])
+      setLoading(true)
+      return () => {
+        active = false
+      }
+    }
+
+    if (!user) {
+      setTasks([])
+      setLoading(false)
+      return () => {
+        active = false
+      }
+    }
+
+    setLoading(true)
 
     taskService
       .listTasks()
@@ -46,7 +64,7 @@ export default function TasksProvider({ children }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [authLoading, user])
 
   const notifyTaskAssigned = useCallback(
     (task) => {

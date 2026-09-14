@@ -18,12 +18,18 @@ import * as messageService from '../services/messageService'
  * subcollection cùng lúc chỉ để tính badge.
  */
 export default function MessagesProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { notify } = useNotifications()
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) {
+      setConversations([])
+      setLoading(true)
+      return undefined
+    }
+
     if (!user) {
       setConversations([])
       setLoading(false)
@@ -37,7 +43,7 @@ export default function MessagesProvider({ children }) {
     })
 
     return unsubscribe
-  }, [user])
+  }, [authLoading, user])
 
   const startConversation = useCallback(
     async (otherProfile) => {

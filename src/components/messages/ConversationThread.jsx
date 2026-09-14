@@ -21,6 +21,7 @@ export default function ConversationThread({
   onOpenGroupInfo,
 }) {
   const [draft, setDraft] = useState('')
+  const [sendEmail, setSendEmail] = useState(false)
   const scrollRef = useRef(null)
   const isGroup = isGroupConversation(conversation)
   const title = getConversationTitle(conversation, currentUid)
@@ -31,6 +32,10 @@ export default function ConversationThread({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages, conversation?.id])
 
+  useEffect(() => {
+    setSendEmail(false)
+  }, [conversation?.id])
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     const text = draft.trim()
@@ -38,7 +43,8 @@ export default function ConversationThread({
 
     setDraft('')
     try {
-      await onSend(text)
+      await onSend(text, sendEmail)
+      setSendEmail(false)
     } catch {
       setDraft(text)
     }
@@ -120,10 +126,21 @@ export default function ConversationThread({
           rows={1}
           aria-label="Nhập tin nhắn"
         />
-        <button type="submit" className="btn btn-primary conversation-send-btn" disabled={!draft.trim() || sending}>
-          <Icon name="send" size={16} className="conversation-send-icon" />
-          Gửi
-        </button>
+        <div className="conversation-composer-actions">
+          <label className="conversation-email-option" title="Chỉ gửi email khi bạn bật tùy chọn này.">
+            <input
+              type="checkbox"
+              checked={sendEmail}
+              onChange={(event) => setSendEmail(event.target.checked)}
+              disabled={sending}
+            />
+            <span>Gửi thông báo này qua email</span>
+          </label>
+          <button type="submit" className="btn btn-primary conversation-send-btn" disabled={!draft.trim() || sending}>
+            <Icon name="send" size={16} className="conversation-send-icon" />
+            Gửi
+          </button>
+        </div>
       </form>
     </div>
   )

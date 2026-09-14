@@ -6,7 +6,7 @@ import Avatar from '../components/Avatar'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../utils/authContext'
 import { useToast } from '../utils/toastContext'
-import { listUserProfiles, updateUserRole } from '../services/userService'
+import { deleteUserProfile, listUserProfiles, updateUserRole } from '../services/userService'
 import { createPosition, deletePosition } from '../services/positionService'
 import usePositions from '../utils/usePositions'
 import '../styles/admin-users.css'
@@ -35,6 +35,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [pendingTarget, setPendingTarget] = useState(null) // { id, nextRole, name }
   const [saving, setSaving] = useState(false)
+  const [deletingTarget, setDeletingTarget] = useState(null) // { id, name }
+  const [deleting, setDeleting] = useState(false)
 
   // [Phase 15] Danh mục CHỨC VỤ — quản lý ở đây (thêm/xóa), dùng làm gợi ý
   // ở ô "Chức vụ" trong module Nhân sự (`PersonnelDetailModal`).
@@ -65,6 +67,29 @@ export default function AdminUsersPage() {
   const requestRoleChange = (profile, nextRole) => {
     if (profile.id === currentUser?.uid) return // không tự đổi role của chính mình
     setPendingTarget({ id: profile.id, nextRole, name: displayNameOf(profile) })
+  }
+
+  const requestDelete = (profile) => {
+    if (profile.id === currentUser?.uid || saving || deleting) return
+    setDeletingTarget({ id: profile.id, name: displayNameOf(profile) })
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingTarget || deleting) return
+
+    setDeleting(true)
+    try {
+      await deleteUserProfile(deletingTarget.id)
+      setProfiles((current) => current.filter((profile) => profile.id !== deletingTarget.id))
+      toast.success('Đã xóa hồ sơ người dùng', { message: deletingTarget.name })
+      setDeletingTarget(null)
+    } catch (error) {
+      toast.error('Không thể xóa hồ sơ người dùng', {
+        message: error instanceof Error ? error.message : 'Vui lòng thử lại.',
+      })
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const confirmRoleChange = async () => {
@@ -191,23 +216,38 @@ export default function AdminUsersPage() {
                           <span className="muted" title="Không thể tự đổi quyền của chính mình">
                             —
                           </span>
-                        ) : isAdminRole ? (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => requestRoleChange(profile, 'user')}
-                          >
-                            Thu quyền admin
-                          </button>
                         ) : (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => requestRoleChange(profile, 'admin')}
-                          >
-                            <Icon name="shield" size={15} />
-                            Cấp quyền admin
-                          </button>
+                          <>
+                            {isAdminRole ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => requestRoleChange(profile, 'user')}
+                                disabled={deleting || saving}
+                              >
+                                Thu quyền admin
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => requestRoleChange(profile, 'admin')}
+                                disabled={deleting || saving}
+                              >
+                                <Icon name="shield" size={15} />
+                                Cấp quyền admin
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-danger-ghost btn-sm"
+                              onClick={() => requestDelete(profile)}
+                              disabled={deleting || saving}
+                            >
+                              <Icon name="error" size={15} />
+                              Xóa hồ sơ
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -296,6 +336,21 @@ export default function AdminUsersPage() {
             : undefined
         }
         confirmLabel="Xác nhận"
+      />
+
+      <ConfirmDialog
+        open={Boolean(deletingTarget)}
+        onClose={() => !deleting && setDeletingTarget(null)}
+        onConfirm={confirmDelete}
+        busy={deleting}
+        tone="danger"
+        title="Xóa hồ sơ người dùng?"
+        description={
+          deletingTarget
+            ? `Hồ sơ Firestore của “${deletingTarget.name}” sẽ bị xóa. Tài khoản Firebase Authentication và dữ liệu nghiệp vụ liên quan sẽ không bị xóa tự động.`
+            : undefined
+        }
+        confirmLabel="Xóa hồ sơ"
       />
 
       <ConfirmDialog

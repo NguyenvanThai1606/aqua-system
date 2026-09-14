@@ -15,6 +15,7 @@ import {
 } from '../utils/taskUtils'
 import {
   daysUntilDeadline as projectDaysUntil,
+  calculateProjectProgress,
   formatDate,
   isProjectOverdue,
   sortProjects,
@@ -249,6 +250,7 @@ export default function DashboardPage() {
                 {upcomingProjects.map((project) => {
                   const status = getProjectStatusMeta(project.status)
                   const overdue = isProjectOverdue(project)
+                  const taskProgress = calculateProjectProgress(tasks, project.id)
 
                   return (
                     <li key={project.id}>
@@ -257,7 +259,9 @@ export default function DashboardPage() {
                           <span className="dashboard-list-title">{project.name}</span>
                           <span className="dashboard-list-meta">
                             <span className={`badge badge-${status.tone}`}>{status.label}</span>
-                            <span className="dashboard-list-progress">{project.progress}%</span>
+                            <span className="dashboard-list-progress">
+                              {taskProgress.percent}%
+                            </span>
                             {overdue && (
                               <span className="badge badge-danger">Quá hạn</span>
                             )}

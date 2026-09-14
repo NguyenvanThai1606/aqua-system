@@ -14,6 +14,7 @@ export default function ProjectCard({ project, onOpen }) {
   const status = getProjectStatusMeta(project.status)
   const budget = getBudgetUsage(project)
   const overdue = isProjectOverdue(project)
+  const taskProgress = project.taskProgress ?? { percent: 0 }
 
   return (
     <article className={cx('project-card', overdue && 'project-card-overdue')}>
@@ -46,17 +47,17 @@ export default function ProjectCard({ project, onOpen }) {
 
       <div className="project-card-progress">
         <div className="project-progress-head">
-          <span className="project-progress-label">Tiến độ</span>
-          <span className="project-progress-value">{project.progress}%</span>
+          <span className="project-progress-label">Tiến độ công việc</span>
+          <span className="project-progress-value">{taskProgress.percent}%</span>
         </div>
         <div className="project-progress-track" aria-hidden="true">
-          <span className="project-progress-fill" style={{ width: `${project.progress}%` }} />
+          <span className="project-progress-fill" style={{ width: `${taskProgress.percent}%` }} />
         </div>
       </div>
 
       <dl className="project-card-budget">
         <div>
-          <dt>Ngân sách</dt>
+          <dt>Sử dụng ngân sách</dt>
           <dd>{formatCompactCurrency(project.budget)}</dd>
         </div>
         <div>

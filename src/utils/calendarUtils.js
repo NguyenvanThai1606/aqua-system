@@ -25,7 +25,13 @@ export function parseISODate(value) {
 
   const [, year, month, day] = match
   const date = new Date(Number(year), Number(month) - 1, Number(day))
-  return Number.isNaN(date.getTime()) ? null : date
+  if (Number.isNaN(date.getTime())) return null
+
+  return date.getFullYear() === Number(year) &&
+    date.getMonth() === Number(month) - 1 &&
+    date.getDate() === Number(day)
+    ? date
+    : null
 }
 
 export function isValidIsoDate(value) {
@@ -157,8 +163,9 @@ export function eventsForRange(events, isoDates) {
 
 /** So sánh thời gian bắt đầu < kết thúc — cả hai đều dạng 'HH:MM'. */
 export function isValidTimeRange(startTime, endTime) {
+  if (!startTime && !endTime) return true
   if (!isValidTime(startTime) || !isValidTime(endTime)) return false
-  return startTime < endTime
+  return startTime <= endTime
 }
 
 export function diffInDays(a, b) {

@@ -17,12 +17,19 @@ import * as notificationService from '../services/notificationService'
  * provider đó render.
  */
 export default function NotificationsProvider({ children }) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (authLoading) {
+      setNotifications([])
+      setLoading(true)
+      setError(null)
+      return undefined
+    }
+
     if (!user) {
       setNotifications([])
       setLoading(false)
@@ -45,7 +52,7 @@ export default function NotificationsProvider({ children }) {
     )
 
     return unsubscribe
-  }, [user])
+  }, [authLoading, user])
 
   /**
    * Tạo thông báo cho MỘT người nhận. Được gọi bởi
