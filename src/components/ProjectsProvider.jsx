@@ -74,6 +74,7 @@ export default function ProjectsProvider({ children }) {
         relatedType: 'project',
         relatedId: project.id,
         actorId: user.uid,
+        actorName: user.displayName || user.email || null,
       }).catch((error) => console.error('[ProjectsProvider] Không gửi được thông báo dự án:', error))
     },
     [user, notify],

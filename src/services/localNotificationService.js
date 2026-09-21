@@ -49,6 +49,25 @@ function newId() {
   return `notif-${Math.random().toString(36).slice(2, 10)}`
 }
 
+function normalizeNotification(input, id = newId()) {
+  if (!input?.userId) throw new Error('Thiếu người nhận thông báo (userId).')
+  if (!input?.type) throw new Error('Thiếu loại thông báo (type).')
+
+  return {
+    id,
+    userId: input.userId,
+    type: input.type,
+    title: input.title ?? '',
+    message: input.message ?? '',
+    read: false,
+    relatedType: input.relatedType ?? null,
+    relatedId: input.relatedId ?? null,
+    actorId: input.actorId ?? null,
+    actorName: input.actorName ?? null,
+    createdAt: new Date().toISOString(),
+  }
+}
+
 export async function createNotification({
   userId,
   type,
@@ -57,22 +76,18 @@ export async function createNotification({
   relatedType = null,
   relatedId = null,
   actorId = null,
+  actorName = null,
 }) {
-  if (!userId) throw new Error('Thiếu người nhận thông báo (userId).')
-  if (!type) throw new Error('Thiếu loại thông báo (type).')
-
-  const notification = {
-    id: newId(),
+  const notification = normalizeNotification({
     userId,
     type,
-    title: title ?? '',
-    message: message ?? '',
-    read: false,
+    title,
+    message,
     relatedType,
     relatedId,
     actorId,
-    createdAt: new Date().toISOString(),
-  }
+    actorName,
+  })
 
   notifications = [notification, ...notifications]
   persist()
@@ -80,7 +95,21 @@ export async function createNotification({
   return structuredClone(notification)
 }
 
-export async function markNotificationRead(id) {
+export async function createNotifications(inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0) return []
+
+  const created = inputs.map((input) => normalizeNotification(input))
+  notifications = [...created.reverse(), ...notifications]
+  persist()
+  new Set(created.map((notification) => notification.userId)).forEach(emit)
+  return created.map((notification) => structuredClone(notification))
+}
+
+export async function getNotificationsByUser(uid) {
+  return notificationsFor(uid)
+}
+
+export async function markNotificationAsRead(id) {
   const target = notifications.find((notification) => notification.id === id)
   if (!target) return
 
@@ -91,7 +120,7 @@ export async function markNotificationRead(id) {
   emit(target.userId)
 }
 
-export async function markAllNotificationsRead(ids) {
+export async function markAllNotificationsAsRead(ids) {
   if (!ids || ids.length === 0) return
 
   const idSet = new Set(ids)
@@ -105,6 +134,9 @@ export async function markAllNotificationsRead(ids) {
   persist()
   affectedUids.forEach((uid) => emit(uid))
 }
+
+export const markNotificationRead = markNotificationAsRead
+export const markAllNotificationsRead = markAllNotificationsAsRead
 
 export async function deleteNotification(id) {
   const target = notifications.find((notification) => notification.id === id)

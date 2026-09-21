@@ -23,6 +23,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
@@ -55,6 +56,25 @@ function fromSnapshot(snapshot) {
     relatedId: data.relatedId ?? null,
     actorId: data.actorId ?? null,
     createdAt: timestampToIso(data.createdAt),
+  }
+}
+
+function normalizeNotification(input, id, createdAt = new Date().toISOString()) {
+  if (!input?.userId) throw new Error('Thiếu người nhận thông báo (userId).')
+  if (!input?.type) throw new Error('Thiếu loại thông báo (type).')
+
+  return {
+    id,
+    userId: input.userId,
+    type: input.type,
+    title: input.title ?? '',
+    message: input.message ?? '',
+    read: false,
+    relatedType: input.relatedType ?? null,
+    relatedId: input.relatedId ?? null,
+    actorId: input.actorId ?? null,
+    actorName: input.actorName ?? null,
+    createdAt,
   }
 }
 
@@ -100,38 +120,51 @@ export async function createNotification({
   relatedType = null,
   relatedId = null,
   actorId = null,
+  actorName = null,
 }) {
-  if (!userId) throw new Error('Thiếu người nhận thông báo (userId).')
-  if (!type) throw new Error('Thiếu loại thông báo (type).')
-
   const db = getDbOrThrow()
   const id = `notif-${doc(collection(db, COLLECTION)).id}`
-  const now = new Date().toISOString()
-
-  const notification = {
-    userId,
-    type,
-    title: title ?? '',
-    message: message ?? '',
-    read: false,
-    relatedType,
-    relatedId,
-    actorId,
-    createdAt: now,
-  }
+  const notification = normalizeNotification(
+    { userId, type, title, message, relatedType, relatedId, actorId, actorName },
+    id,
+  )
 
   await setDoc(doc(db, COLLECTION, id), notification)
   return { id, ...notification }
 }
 
+export async function createNotifications(inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0) return []
+
+  const db = getDbOrThrow()
+  const batch = writeBatch(db)
+  const notifications = inputs.map((input) => {
+    const id = `notif-${doc(collection(db, COLLECTION)).id}`
+    const notification = normalizeNotification(input, id)
+    batch.set(doc(db, COLLECTION, id), notification)
+    return notification
+  })
+
+  await batch.commit()
+  return notifications.map((notification) => structuredClone(notification))
+}
+
+export async function getNotificationsByUser(uid) {
+  const db = getDbOrThrow()
+  const snapshot = await getDocs(query(collection(db, COLLECTION), where('userId', '==', uid)))
+  return snapshot.docs
+    .map(fromSnapshot)
+    .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+}
+
 /** Đánh dấu MỘT thông báo đã đọc — CHỈ chủ sở hữu (enforced ở rules). */
-export async function markNotificationRead(id) {
+export async function markNotificationAsRead(id) {
   const db = getDbOrThrow()
   await updateDoc(doc(db, COLLECTION, id), { read: true })
 }
 
 /** Đánh dấu NHIỀU thông báo đã đọc cùng lúc — dùng cho "Đánh dấu tất cả đã đọc". */
-export async function markAllNotificationsRead(ids) {
+export async function markAllNotificationsAsRead(ids) {
   if (!ids || ids.length === 0) return
 
   const db = getDbOrThrow()
@@ -139,6 +172,9 @@ export async function markAllNotificationsRead(ids) {
   ids.forEach((id) => batch.update(doc(db, COLLECTION, id), { read: true }))
   await batch.commit()
 }
+
+export const markNotificationRead = markNotificationAsRead
+export const markAllNotificationsRead = markAllNotificationsAsRead
 
 /** Xóa MỘT thông báo — CHỈ chủ sở hữu (enforced ở rules). */
 export async function deleteNotification(id) {

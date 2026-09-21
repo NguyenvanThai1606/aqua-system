@@ -86,6 +86,7 @@ export default function MessagesProvider({ children }) {
           relatedType: 'conversation',
           relatedId: conversation.id,
           actorId: user.uid,
+          actorName: user.displayName || user.email || null,
         }).catch((error) => console.error('[MessagesProvider] Không gửi được thông báo thêm nhóm:', error))
       })
     },

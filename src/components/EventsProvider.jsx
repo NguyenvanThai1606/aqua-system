@@ -85,6 +85,7 @@ export default function EventsProvider({ children }) {
             relatedType: 'event',
             relatedId: event.id,
             actorId: user.uid,
+            actorName: user.displayName || user.email || null,
           }).catch((error) => console.error('[EventsProvider] Không gửi được thông báo lịch:', error))
         })
     },
