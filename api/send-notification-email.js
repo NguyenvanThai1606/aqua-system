@@ -102,11 +102,17 @@ function buildEmailContent(notification) {
   const relatedId = cleanText(notification.relatedId)
 
   const lines = [
-    'AQUA',
+    'AQUA Task Management',
     '',
+    `${title}`,
+    '',
+    'Công việc:',
     title,
     '',
+    'Nội dung:',
     message || 'Bạn có một thông báo mới trong AQUA.',
+    '',
+    'Vui lòng đăng nhập AQUA để xem chi tiết công việc.',
   ]
 
   if (type) {
@@ -130,8 +136,10 @@ function buildEmailContent(notification) {
     '<html>',
     '<body>',
     '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#222;">',
-    '<p><strong>AQUA</strong></p>',
+    '<p><strong>AQUA Task Management</strong></p>',
     `<h2>${escapeHtml(title)}</h2>`,
+    `<p><strong>Công việc:</strong> ${escapeHtml(title)}</p>`,
+    '<p><strong>Nội dung:</strong></p>',
     `<p>${escapeHtml(message || 'Bạn có một thông báo mới trong AQUA.').replaceAll('\n', '<br>')}</p>`,
     type
       ? `<p><strong>Loại thông báo:</strong> ${escapeHtml(type)}</p>`
@@ -144,15 +152,15 @@ function buildEmailContent(notification) {
           relatedId ? ` (${escapeHtml(relatedId)})` : ''
         }</p>`
       : '',
+    '<p>Vui lòng đăng nhập AQUA để xem chi tiết công việc.</p>',
     '<hr>',
-    '<p style="color:#777;font-size:12px;">Email tự động từ hệ thống AQUA.</p>',
     '</div>',
     '</body>',
     '</html>',
   ].join('')
 
   return {
-    subject: `AQUA - ${title}`,
+    subject: `AQUA – ${title}`,
     text: lines.join('\n'),
     html,
   }
@@ -339,8 +347,9 @@ export default async function handler(req, res) {
 
       try {
         await transporter.sendMail({
-          from: config.smtpUser,
+          from: `AQUA Task Management <${config.smtpUser}>`,
           to: recipientEmail,
+          replyTo: config.smtpUser,
           subject: email.subject,
           text: email.text,
           html: email.html,
