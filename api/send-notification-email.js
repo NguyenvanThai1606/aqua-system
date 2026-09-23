@@ -1,13 +1,13 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 const MAX_ID_LENGTH = 256
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// Vercel functions are ephemeral, so this Set is only an extra
-// best-effort guard. Resend idempotency is the real duplicate protection.
+// Vercel functions are ephemeral, so these Sets are only best-effort
+// duplicate guards within a single server instance.
 const sentNotificationIds = new Set()
 const processingNotificationIds = new Set()
 
@@ -31,17 +31,17 @@ function getServerConfig() {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL
   const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n')
-  const resendApiKey = process.env.RESEND_API_KEY
-  const emailFrom = process.env.EMAIL_FROM
+  const smtpUser = process.env.SMTP_USER
+  const smtpPass = process.env.SMTP_PASS
 
   return {
     projectId,
     clientEmail,
     privateKey,
-    resendApiKey,
-    emailFrom,
+    smtpUser,
+    smtpPass,
     firebaseAdminConfigured: Boolean(projectId && clientEmail && privateKey),
-    emailConfigured: Boolean(resendApiKey && emailFrom),
+    smtpConfigured: Boolean(smtpUser && smtpPass),
   }
 }
 
@@ -86,6 +86,11 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
+}
+
+function safeProviderError(error, secret) {
+  const message = error?.message || error?.code || 'Unknown SMTP error'
+  return secret ? message.replaceAll(secret, '[redacted]') : message
 }
 
 function buildEmailContent(notification) {
@@ -187,13 +192,13 @@ export default async function handler(req, res) {
     })
   }
 
-  if (!config.emailConfigured) {
-    console.error('[send-notification-email] Email service is not configured')
+  if (!config.smtpConfigured) {
+    console.error('[send-notification-email] SMTP service is not configured')
 
     return json(res, 503, {
       ok: false,
       sent: false,
-      reason: 'email_service_not_configured',
+      reason: 'smtp_not_configured',
     })
   }
 
@@ -324,32 +329,31 @@ export default async function handler(req, res) {
       }
 
       const email = buildEmailContent(notification)
-      const resend = new Resend(config.resendApiKey)
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: config.smtpUser,
+          pass: config.smtpPass,
+        },
+      })
 
-      const result = await resend.emails.send(
-        {
-          from: config.emailFrom,
+      try {
+        await transporter.sendMail({
+          from: config.smtpUser,
           to: recipientEmail,
           subject: email.subject,
           text: email.text,
           html: email.html,
-        },
-        {
-          idempotencyKey: `notification-email-${notificationId}`,
-        },
-      )
-
-      if (result?.error) {
-        console.error(
-          '[send-notification-email] Resend returned an error:',
-          result.error,
-        )
+        })
+      } catch (error) {
+        const providerError = safeProviderError(error, config.smtpPass)
+        console.error('[send-notification-email] SMTP provider error:', providerError)
 
         return json(res, 502, {
           ok: false,
           sent: false,
-          reason: 'email_provider_error',
-          providerError: result.error.message || 'Unknown Resend error',
+          reason: 'smtp_provider_error',
+          providerError,
         })
       }
 
@@ -358,16 +362,14 @@ export default async function handler(req, res) {
       return json(res, 200, {
         ok: true,
         sent: true,
-        emailId: result?.data?.id || null,
+        emailId: null,
       })
     } finally {
       processingNotificationIds.delete(notificationId)
     }
   } catch (error) {
-    console.error(
-      '[send-notification-email] Unexpected server error:',
-      error,
-    )
+    const diagnostic = safeProviderError(error, config.smtpPass)
+    console.error('[send-notification-email] Unexpected server error:', diagnostic)
 
     return json(res, 500, {
       ok: false,
