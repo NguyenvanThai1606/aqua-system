@@ -80,49 +80,16 @@ export default function MessagesPage() {
 
   const handleBack = () => setActiveId(null)
 
-  const handleSend = async (text, sendEmail = false) => {
+  const handleSend = async (text) => {
     if (!activeConversation || !user) return
     setSending(true)
     try {
-      const sentMessage = await messageService.sendMessage({
+      await messageService.sendMessage({
         conversationId: activeConversation.id,
         participantIds: activeConversation.participantIds,
         senderId: user.uid,
         text,
-        sendEmail,
       })
-
-      if (sendEmail) {
-        const recipients = (activeConversation.participants ?? []).filter(
-          (participant) => participant.id !== user.uid,
-        )
-        const emailResults = recipients.length
-          ? await Promise.allSettled(
-              recipients.map(async (recipient) => {
-                if (!recipient.email) throw new Error(`Không có email của ${recipient.name || 'người nhận'}.`)
-
-                const response = await fetch('/api/send-message-email', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    recipientEmail: recipient.email,
-                    recipientName: recipient.name,
-                    senderName: user.displayName || user.email || 'Người dùng AQUA',
-                    messageText: text,
-                    conversationId: activeConversation.id,
-                    requestId: `message-email-${sentMessage.id}-${recipient.id}`,
-                  }),
-                })
-
-                if (!response.ok) throw new Error('Email service request failed.')
-              }),
-            )
-          : [{ status: 'rejected' }]
-
-        if (emailResults.some((result) => result.status === 'rejected')) {
-          toast.warning('Tin nhắn đã được gửi nhưng thông báo email không gửi được.')
-        }
-      }
     } catch (error) {
       toast.error('Không gửi được tin nhắn', {
         message: error instanceof Error ? error.message : 'Vui lòng thử lại.',
