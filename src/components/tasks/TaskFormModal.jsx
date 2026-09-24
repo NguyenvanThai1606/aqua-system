@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   supervisorId: '',
   projectId: '',
   deadline: '',
+  laborCost: '0',
   priority: DEFAULT_PRIORITY,
   status: DEFAULT_STATUS,
 }
@@ -76,6 +77,11 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
       }
     }
 
+    const laborCost = Number(form.laborCost)
+    if (form.laborCost !== '' && (!Number.isFinite(laborCost) || laborCost < 0)) {
+      next.laborCost = 'Tiền công phải là số không âm.'
+    }
+
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -100,6 +106,7 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
           : null,
         projectId: form.projectId || null,
         deadline: form.deadline,
+        laborCost: form.laborCost === '' ? 0 : Number(form.laborCost),
         checklist,
       })
     } finally {
@@ -279,6 +286,23 @@ export default function TaskFormModal({ open, onClose, onSubmit }) {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="form-labor-cost">
+              Tiền công (VNĐ)
+            </label>
+            <input
+              id="form-labor-cost"
+              type="number"
+              min="0"
+              step="1000"
+              className="input"
+              value={form.laborCost}
+              onChange={(event) => setField('laborCost', event.target.value)}
+              aria-invalid={Boolean(errors.laborCost)}
+            />
+            {errors.laborCost && <p className="task-form-error">{errors.laborCost}</p>}
           </div>
         </div>
 

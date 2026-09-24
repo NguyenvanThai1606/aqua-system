@@ -92,7 +92,11 @@ export function getDepartmentMembershipPatch(departmentIds, departments = [], fa
 }
 
 function normalizeUserProfile(profile) {
-  return { ...profile, departmentIds: getUserDepartmentIds(profile) }
+  return {
+    ...profile,
+    departmentIds: getUserDepartmentIds(profile),
+    permissions: Array.isArray(profile?.permissions) ? profile.permissions : [],
+  }
 }
 
 /** Tên hiển thị: ưu tiên displayName Firebase, fallback phần trước "@" của email. */
@@ -178,6 +182,7 @@ export async function ensureUserProfile(firebaseUser) {
         displayName: nextDisplayName,
         photoURL: nextPhotoURL,
         role: DEFAULT_ROLE,
+        permissions: [],
         departmentIds: [],
         createdAt: now,
         updatedAt: now,

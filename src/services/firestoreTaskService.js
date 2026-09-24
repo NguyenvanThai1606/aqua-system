@@ -25,6 +25,8 @@ function newId(prefix) {
 }
 
 function normalize(input) {
+  const laborCost = Number(input.laborCost)
+
   return {
     title: input.title?.trim() ?? '',
     description: input.description?.trim() ?? '',
@@ -40,6 +42,7 @@ function normalize(input) {
       title: item.title.trim(),
       completed: Boolean(item.completed),
     })),
+    laborCost: Number.isFinite(laborCost) && laborCost >= 0 ? Math.round(laborCost) : 0,
   }
 }
 
@@ -51,6 +54,9 @@ function fromFirestore(snapshot) {
     notes: data.notes ?? '',
     supervisor: data.supervisor ?? null,
     projectId: data.projectId ?? null,
+    laborCost: Number.isFinite(Number(data.laborCost)) && Number(data.laborCost) >= 0
+      ? Math.round(Number(data.laborCost))
+      : 0,
     createdAt: timestampToIso(data.createdAt),
   }
 }

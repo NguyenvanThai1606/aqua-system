@@ -25,7 +25,7 @@ export default function Sidebar({ collapsed, open, onNavigate }) {
   const { overdueCount: overdueProjects } = useProjects()
   const { unreadTotal: unreadMessages } = useMessages()
   const { unreadCount: unreadNotifications } = useNotifications()
-  const { isAdmin, roleLoading } = useAuth()
+  const { isAdmin, roleLoading, hasPermission } = useAuth()
   // Chỉ coi là admin khi role đã xác nhận XONG (!roleLoading) — tránh mọi
   // khả năng hiển thị nhầm mục quản trị bằng giá trị role cũ còn sót lại
   // trong khoảnh khắc chuyển đổi user (xem AuthProvider.jsx).
@@ -44,7 +44,9 @@ export default function Sidebar({ collapsed, open, onNavigate }) {
   const visibleGroups = navigation
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.adminOnly || confirmedAdmin),
+      items: group.items.filter(
+        (item) => (!item.adminOnly || confirmedAdmin) && (!item.permission || hasPermission(item.permission)),
+      ),
     }))
     .filter((group) => group.items.length > 0)
 

@@ -10,6 +10,7 @@ import EventsProvider from './components/EventsProvider'
 import MessagesProvider from './components/MessagesProvider'
 import RequireAuth from './components/auth/RequireAuth'
 import RequireAdmin from './components/auth/RequireAdmin'
+import RequirePermission from './components/auth/RequirePermission'
 
 import DashboardPage from './pages/DashboardPage'
 import ProfilePage from './pages/ProfilePage'
@@ -19,6 +20,7 @@ import NhanSuPage from './pages/NhanSuPage'
 import MessagesPage from './pages/MessagesPage'
 import CalendarPage from './pages/CalendarPage'
 import AttendancePage from './pages/AttendancePage'
+import TimesheetPage from './pages/TimesheetPage'
 import ReportsPage from './pages/ReportsPage'
 import NotificationsPage from './pages/NotificationsPage'
 import SettingsPage from './pages/SettingsPage'
@@ -58,6 +60,9 @@ export default function App() {
                             <Route path="tin-nhan" element={<MessagesPage />} />
                             <Route path="lich" element={<CalendarPage />} />
                             <Route path="cham-cong" element={<AttendancePage />} />
+                            <Route element={<RequirePermission permission="timesheet.view" />}>
+                              <Route path="bang-cham-cong" element={<TimesheetPage />} />
+                            </Route>
                             <Route path="bao-cao-kpi" element={<ReportsPage />} />
                             <Route path="thong-bao" element={<NotificationsPage />} />
                             <Route path="cai-dat" element={<SettingsPage />} />

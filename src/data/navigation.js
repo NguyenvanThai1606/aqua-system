@@ -24,6 +24,7 @@ const navigation = [
       { to: '/tin-nhan', label: 'Tin nhắn', icon: 'messages', badgeKey: 'unreadMessages' },
       { to: '/lich', label: 'Lịch', icon: 'calendar' },
       { to: '/cham-cong', label: 'Chấm công', icon: 'attendance' },
+      { to: '/bang-cham-cong', label: 'Bảng chấm công', icon: 'reports', permission: 'timesheet.view' },
     ],
   },
   {

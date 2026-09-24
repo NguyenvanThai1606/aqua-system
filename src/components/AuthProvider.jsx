@@ -29,6 +29,7 @@ export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState(null)
+  const [permissions, setPermissions] = useState([])
   // Khởi tạo TRUE — "chưa biết role", không phải "role đã xác định là user".
   //
   // Nếu khởi tạo false thì ngay sau khi Firebase Auth xác nhận đăng nhập,
@@ -57,6 +58,7 @@ export default function AuthProvider({ children }) {
   useEffect(() => {
     if (!user) {
       setRole(null)
+      setPermissions([])
       setRoleLoading(false)
       return undefined
     }
@@ -81,6 +83,7 @@ export default function AuthProvider({ children }) {
     const unsubscribeProfile = subscribeUserProfile(user.uid, (profile) => {
       if (!active) return
       setRole(profile?.role ?? DEFAULT_ROLE)
+      setPermissions(Array.isArray(profile?.permissions) ? profile.permissions : [])
       setRoleLoading(false)
     })
 
@@ -96,6 +99,8 @@ export default function AuthProvider({ children }) {
       loading,
       isAuthenticated: Boolean(user),
       role,
+      permissions,
+      hasPermission: (permission) => permissions.includes(permission),
       roleLoading,
       isAdmin: role === 'admin',
       login: (email, password) => signIn(email, password),
@@ -128,7 +133,7 @@ export default function AuthProvider({ children }) {
         setProfileVersion((version) => version + 1)
       },
     }),
-    [user, loading, role, roleLoading, profileVersion],
+    [user, loading, role, permissions, roleLoading, profileVersion],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

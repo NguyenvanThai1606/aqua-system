@@ -22,6 +22,8 @@ function newId(prefix) {
 }
 
 function normalize(input) {
+  const laborCost = Number(input.laborCost)
+
   return {
     title: input.title?.trim() ?? '',
     description: input.description?.trim() ?? '',
@@ -37,6 +39,7 @@ function normalize(input) {
       title: item.title.trim(),
       completed: Boolean(item.completed),
     })),
+    laborCost: Number.isFinite(laborCost) && laborCost >= 0 ? Math.round(laborCost) : 0,
   }
 }
 
@@ -47,6 +50,9 @@ export async function listTasks() {
       notes: task.notes ?? '',
       supervisor: task.supervisor ?? null,
       projectId: task.projectId ?? null,
+      laborCost: Number.isFinite(Number(task.laborCost)) && Number(task.laborCost) >= 0
+        ? Math.round(Number(task.laborCost))
+        : 0,
     }),
   )
 }

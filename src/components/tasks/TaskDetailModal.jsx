@@ -168,6 +168,11 @@ export default function TaskDetailModal({
               <span className={`badge badge-${priority.tone}`}>{priority.label}</span>
             </dd>
           </div>
+
+          <div className="task-detail-meta-item">
+            <dt>Tiền công</dt>
+            <dd>{(Number(task.laborCost) || 0).toLocaleString('vi-VN')} đ</dd>
+          </div>
         </dl>
 
         <div className="task-detail-controls">
@@ -227,6 +232,23 @@ export default function TaskDetailModal({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {canReassign && (
+            <div className="field">
+              <label className="field-label" htmlFor="detail-task-labor-cost">
+                Tiền công (VNĐ)
+              </label>
+              <input
+                id="detail-task-labor-cost"
+                type="number"
+                min="0"
+                step="1000"
+                className="input"
+                value={task.laborCost ?? 0}
+                onChange={(event) => onPatch({ laborCost: Number(event.target.value) || 0 })}
+              />
             </div>
           )}
 

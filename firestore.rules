@@ -137,6 +137,32 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function hasPermission(permission) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions is list
+        && permission in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions;
+    }
+
+    function validAdjustment(data) {
+      return data.userId is string
+        && exists(/databases/$(database)/documents/users/$(data.userId))
+        && data.userName is string
+        && data.type in ['addition', 'deduction']
+        && data.amount is number
+        && data.amount > 0
+        && data.description is string
+        && data.description.size() > 0
+        && data.date is string
+        && data.note is string
+        && data.createdBy is string;
+    }
+
+    function validLaborCost(data) {
+      return !data.keys().hasAny(['laborCost'])
+        || (data.laborCost is number && data.laborCost >= 0);
+    }
+
     match /users/{userId} {
       // Phase 9 — `photoURL` là URL ảnh do người dùng tự dán (ô "URL ảnh đại
       // diện" ở `/profile`), không phải file upload lên Storage. Chặn việc
@@ -368,10 +394,10 @@ service cloud.firestore {
     //    xóa hay hỏng, chỉ chờ admin reassign.
     match /tasks/{taskId} {
       allow read: if isSignedIn();
-      allow create: if isAdmin();
+      allow create: if isAdmin() && validLaborCost(request.resource.data);
       allow delete: if isAdmin();
 
-      allow update: if isAdmin() || (
+      allow update: if (isAdmin() && validLaborCost(request.resource.data)) || (
         isSignedIn() &&
         resource.data.assignee != null &&
         resource.data.assignee.id == request.auth.uid &&
@@ -400,8 +426,26 @@ service cloud.firestore {
             request.resource.data.keys().hasAny(['projectId']) &&
             request.resource.data.projectId == resource.data.projectId)
         ) &&
+        (
+          (!resource.data.keys().hasAny(['laborCost']) &&
+            (!request.resource.data.keys().hasAny(['laborCost']) || request.resource.data.laborCost == 0)) ||
+          (resource.data.keys().hasAny(['laborCost']) &&
+            request.resource.data.keys().hasAny(['laborCost']) &&
+            request.resource.data.laborCost == resource.data.laborCost)
+        ) &&
         request.resource.data.createdAt == resource.data.createdAt
       );
+    }
+
+    match /timesheetAdjustments/{adjustmentId} {
+      allow read: if hasPermission('timesheet.view');
+      allow create: if hasPermission('timesheet.manage')
+        && request.resource.data.createdBy == request.auth.uid
+        && validAdjustment(request.resource.data);
+      allow update: if hasPermission('timesheet.manage')
+        && request.resource.data.createdBy == resource.data.createdBy
+        && validAdjustment(request.resource.data);
+      allow delete: if hasPermission('timesheet.manage');
     }
 
     // ============================================================
