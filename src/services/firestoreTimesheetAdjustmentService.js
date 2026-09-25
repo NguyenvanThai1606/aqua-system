@@ -73,6 +73,7 @@ export async function listAdjustments() {
 
 export async function createAdjustment(input, currentUser) {
   const db = getDbOrThrow()
+  if (!currentUser?.uid) throw new Error('Chưa xác định người dùng đang đăng nhập.')
   const now = new Date().toISOString()
   const adjustment = normalize(input, newId(), currentUser.uid, { createdAt: now, updatedAt: now })
   try {

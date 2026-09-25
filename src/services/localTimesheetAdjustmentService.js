@@ -39,6 +39,7 @@ export async function listAdjustments() {
 }
 
 export async function createAdjustment(input, currentUser) {
+  if (!currentUser?.uid) throw new Error('Chưa xác định người dùng đang đăng nhập.')
   const adjustment = normalize(input, newId(), currentUser.uid)
   store = [adjustment, ...store]
   persist()
