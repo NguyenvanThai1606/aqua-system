@@ -74,8 +74,9 @@ export async function updateTask(id, patch) {
   if (!current) throw new Error(`Không tìm thấy công việc ${id}`)
 
   const updated = {
-    ...current,
-    ...patch,
+    ...normalize({ ...current, ...patch }),
+    id: current.id,
+    createdAt: current.createdAt,
     notes: patch.notes ?? current.notes ?? '',
     supervisor: Object.prototype.hasOwnProperty.call(patch, 'supervisor')
       ? patch.supervisor

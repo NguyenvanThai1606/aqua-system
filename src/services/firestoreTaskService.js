@@ -128,7 +128,12 @@ export async function updateTask(id, patch) {
     if (!snapshot.exists()) throw new Error(`Không tìm thấy công việc ${id}`)
 
     const current = fromFirestore(snapshot)
-    const updated = { ...current, ...patch }
+    const laborCost = Number(patch.laborCost ?? current.laborCost)
+    const updated = {
+      ...current,
+      ...patch,
+      laborCost: Number.isFinite(laborCost) && laborCost >= 0 ? Math.round(laborCost) : 0,
+    }
     await updateDoc(ref, toFirestorePayload(updated))
     return structuredClone(updated)
   } catch (error) {
