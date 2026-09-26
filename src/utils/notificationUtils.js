@@ -33,7 +33,9 @@ export function formatRelativeTime(iso) {
 const TYPE_META = {
   task_assigned: { icon: 'tasks', label: 'Công việc' },
   task_updated: { icon: 'tasks', label: 'Công việc' },
+  task_email: { icon: 'tasks', label: 'Công việc' },
   project_manager_assigned: { icon: 'projects', label: 'Dự án' },
+  project_email: { icon: 'projects', label: 'Dự án' },
   group_added: { icon: 'messages', label: 'Tin nhắn nhóm' },
   event_invited: { icon: 'calendar', label: 'Lịch' },
   event_updated: { icon: 'calendar', label: 'Lịch' },

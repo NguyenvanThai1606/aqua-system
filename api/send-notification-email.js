@@ -97,6 +97,8 @@ function buildEmailContent(notification) {
   const title = cleanText(notification.title) || 'Thông báo mới'
   const message = cleanText(notification.message)
   const type = cleanText(notification.type)
+  const resourceLabel = notification.relatedType === 'project' ? 'Dự án' : 'Công việc'
+  const actionLabel = notification.relatedType === 'project' ? 'dự án' : 'công việc'
   const actorName = cleanText(notification.actorName)
   const relatedType = cleanText(notification.relatedType)
   const relatedId = cleanText(notification.relatedId)
@@ -106,13 +108,13 @@ function buildEmailContent(notification) {
     '',
     `${title}`,
     '',
-    'Công việc:',
+    `${resourceLabel}:`,
     title,
     '',
     'Nội dung:',
     message || 'Bạn có một thông báo mới trong AQUA.',
     '',
-    'Vui lòng đăng nhập AQUA để xem chi tiết công việc.',
+    `Vui lòng đăng nhập AQUA để xem chi tiết ${actionLabel}.`,
   ]
 
   if (type) {
@@ -138,7 +140,7 @@ function buildEmailContent(notification) {
     '<div style="font-family:Arial,sans-serif;line-height:1.6;color:#222;">',
     '<p><strong>AQUA Task Management</strong></p>',
     `<h2>${escapeHtml(title)}</h2>`,
-    `<p><strong>Công việc:</strong> ${escapeHtml(title)}</p>`,
+    `<p><strong>${escapeHtml(resourceLabel)}:</strong> ${escapeHtml(title)}</p>`,
     '<p><strong>Nội dung:</strong></p>',
     `<p>${escapeHtml(message || 'Bạn có một thông báo mới trong AQUA.').replaceAll('\n', '<br>')}</p>`,
     type
@@ -152,7 +154,7 @@ function buildEmailContent(notification) {
           relatedId ? ` (${escapeHtml(relatedId)})` : ''
         }</p>`
       : '',
-    '<p>Vui lòng đăng nhập AQUA để xem chi tiết công việc.</p>',
+    `<p>Vui lòng đăng nhập AQUA để xem chi tiết ${actionLabel}.</p>`,
     '<hr>',
     '</div>',
     '</body>',

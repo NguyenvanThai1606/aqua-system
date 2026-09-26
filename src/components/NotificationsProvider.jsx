@@ -67,6 +67,10 @@ export default function NotificationsProvider({ children }) {
     return notificationService.createNotification(payload)
   }, [])
 
+  const notifyMany = useCallback((payloads) => {
+    return notificationService.createNotifications(payloads)
+  }, [])
+
   const markRead = useCallback(
     (id) => {
       if (!user) return Promise.resolve()
@@ -101,11 +105,12 @@ export default function NotificationsProvider({ children }) {
       error,
       unreadCount,
       notify,
+      notifyMany,
       markRead,
       markAllRead,
       removeNotification,
     }),
-    [notifications, loading, error, unreadCount, notify, markRead, markAllRead, removeNotification],
+    [notifications, loading, error, unreadCount, notify, notifyMany, markRead, markAllRead, removeNotification],
   )
 
   return <NotificationsContext value={value}>{children}</NotificationsContext>

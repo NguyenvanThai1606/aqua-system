@@ -806,9 +806,9 @@ service cloud.firestore {
       // Tạo: HAI nhánh — (a) admin cho 4 loại thông báo cũ, (b) chủ sự
       // kiện lịch cho 3 loại MỚI (Phase 15).
       //
-      // (a) CHỈ admin — vì CẢ BỐN loại thông báo hiện có
+      // (a) CHỈ admin — vì các loại thông báo task/project/group hiện có
       // (`task_assigned`, `task_updated`, `project_manager_assigned`,
-      // `group_added`) đều chỉ có thể phát sinh từ một hành động mà chính
+      // `group_added`, `task_email`, `project_email`) đều chỉ có thể phát sinh từ một hành động mà chính
       // rules của collection gốc đã giới hạn cho admin:
       //  - Gán/đổi `assignee` trên `tasks`: CHỈ admin (`allow update` của
       //    `tasks` khóa `assignee` khỏi field user thường tự sửa được).
@@ -857,7 +857,7 @@ service cloud.firestore {
           (
             isAdmin() &&
             request.resource.data.type in
-              ['task_assigned', 'task_updated', 'project_manager_assigned', 'group_added']
+              ['task_assigned', 'task_updated', 'project_manager_assigned', 'group_added', 'task_email', 'project_email']
           ) ||
           (
             isSignedIn() &&

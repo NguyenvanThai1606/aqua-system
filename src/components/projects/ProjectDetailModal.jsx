@@ -1,6 +1,8 @@
+import { useCallback, useState } from 'react'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
 import Icon from '../Icon'
+import EmailRecipientDialog from '../EmailRecipientDialog'
 import { PROJECT_STATUSES, getProjectStatusMeta } from '../../data/projectMeta'
 import {
   daysUntilDeadline,
@@ -39,9 +41,11 @@ export default function ProjectDetailModal({
   onRequestDelete,
   canEdit = false,
 }) {
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
   const { profiles: users, loading: usersLoading } = useUserProfiles(open && canEdit)
   const { projects } = useProjects()
   const existingCustomers = getDistinctCustomers(projects)
+  const closeEmailDialog = useCallback(() => setEmailDialogOpen(false), [])
 
   if (!project) return null
 
@@ -68,6 +72,16 @@ export default function ProjectDetailModal({
       description={`Tạo ngày ${new Date(project.createdAt).toLocaleDateString('vi-VN')}`}
       footer={
         <>
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setEmailDialogOpen(true)}
+            >
+              <Icon name="send" size={15} />
+              Gửi email
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"
@@ -327,6 +341,18 @@ export default function ProjectDetailModal({
               />
             </div>
           </div>
+        )}
+
+        {canEdit && emailDialogOpen && (
+          <EmailRecipientDialog
+            open
+            onClose={closeEmailDialog}
+            resourceType="project"
+            resource={project}
+            assignedUid={project.manager?.id}
+            profiles={users}
+            profilesLoading={usersLoading}
+          />
         )}
       </div>
     </Modal>

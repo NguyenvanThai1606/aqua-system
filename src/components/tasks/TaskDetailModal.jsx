@@ -1,6 +1,8 @@
+import { useCallback, useState } from 'react'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
 import Icon from '../Icon'
+import EmailRecipientDialog from '../EmailRecipientDialog'
 import TaskChecklist from './TaskChecklist'
 import { TASK_PRIORITIES, TASK_STATUSES, getPriorityMeta } from '../../data/taskMeta'
 import {
@@ -36,8 +38,10 @@ export default function TaskDetailModal({
   canDelete = false,
   canReassign = false,
 }) {
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
   const { profiles: users, loading: usersLoading } = useUserProfiles(open && canReassign)
   const { projects, loading: projectsLoading } = useProjects()
+  const closeEmailDialog = useCallback(() => setEmailDialogOpen(false), [])
 
   if (!task) return null
 
@@ -68,6 +72,16 @@ export default function TaskDetailModal({
       description={`Tạo ngày ${new Date(task.createdAt).toLocaleDateString('vi-VN')}`}
       footer={
         <>
+          {canReassign && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setEmailDialogOpen(true)}
+            >
+              <Icon name="send" size={15} />
+              Gửi email
+            </button>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -302,6 +316,18 @@ export default function TaskDetailModal({
           items={task.checklist}
           onToggle={(item) => onToggleChecklistItem(item.id)}
         />
+
+        {canReassign && emailDialogOpen && (
+          <EmailRecipientDialog
+            open
+            onClose={closeEmailDialog}
+            resourceType="task"
+            resource={task}
+            assignedUid={task.assignee?.id}
+            profiles={users}
+            profilesLoading={usersLoading}
+          />
+        )}
       </div>
     </Modal>
   )
